@@ -1,0 +1,5 @@
+[
+  { "name": "Claude 주간", "used_pct": 39, "resets_at": "2026-07-15T23:00:00+09:00", "window_days": 7 },
+  { "name": "Codex 주간", "used_pct": 12, "resets_at": "2026-07-18T15:02:00+09:00", "window_days": 7 },
+  { "name": "Claude 5시간", "used_pct": 42, "resets_at": "2026-07-12T18:59:00+09:00", "window_hours": 5 }
+]

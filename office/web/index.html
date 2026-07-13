@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Office — 픽셀 사무실</title>
+<style>
+  :root {
+    --bg: #14161d; --panel: #1c1f29; --panel2: #232734; --line: #2e3342;
+    --ink: #e8eaf2; --ink2: #9aa1b5; --ink3: #6b7288;
+    --busy: #34d27b; --idle: #f5c84b; --stalled: #f2555a; --unknown: #8a91a3;
+    --gauge: #5aa2f0; --accent: #f0b429;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: "DungGeunMo", ui-monospace, "SF Mono", Menlo, monospace;
+    padding: 16px; max-width: 1100px; margin: 0 auto;
+  }
+  header { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
+  header h1 { font-size: 18px; letter-spacing: 3px; color: var(--accent); }
+  header .meta { color: var(--ink2); font-size: 12px; }
+  header .chips { margin-left: auto; display: flex; gap: 8px; font-size: 12px; }
+  .chip { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 3px 9px; }
+  .chip b { color: var(--accent); }
+
+  #scene-wrap { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: #000; }
+  canvas { display: block; width: 100%; image-rendering: pixelated; }
+
+  .legend { display: flex; gap: 14px; font-size: 12px; color: var(--ink2); margin: 8px 2px 16px; flex-wrap: wrap; }
+  .legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .dot { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px; }
+  .panel h2 { font-size: 12px; letter-spacing: 2px; color: var(--ink2); margin-bottom: 10px; text-transform: uppercase; }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(86px, 1fr)); gap: 8px; }
+  .tile { background: var(--panel2); border-radius: 6px; padding: 8px 10px; }
+  .tile .v { font-size: 16px; color: var(--ink); }
+  .tile .k { font-size: 10px; color: var(--ink3); margin-top: 2px; }
+  .note { font-size: 10px; color: var(--ink3); margin-top: 8px; }
+
+  .gauge { margin-bottom: 14px; }
+  .gauge .row1 { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px; }
+  .gauge .row1 .pct { color: var(--ink2); }
+  .bar { position: relative; height: 12px; background: var(--panel2); border-radius: 4px; overflow: visible; }
+  .bar .fill { position: absolute; inset: 0 auto 0 0; border-radius: 4px; background: var(--gauge); min-width: 2px; }
+  .bar .fill.over { background: var(--stalled); }
+  .bar .marker { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); opacity: .9; }
+  .gauge .row2 { font-size: 11px; color: var(--ink2); margin-top: 5px; }
+  .gauge .row2 .over-txt { color: var(--stalled); }
+  .gauge .row2 .ok-txt { color: var(--busy); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  td { padding: 6px 4px; border-top: 1px solid var(--line); vertical-align: top; }
+  tr:first-child td { border-top: 0; }
+  td.status { white-space: nowrap; }
+  td .bubble { color: var(--ink3); font-size: 11px; display: block; margin-top: 2px;
+               max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .empty { color: var(--ink3); font-size: 12px; padding: 10px 0; }
+  .s-busy { color: var(--busy); } .s-idle { color: var(--idle); }
+  .s-stalled { color: var(--stalled); } .s-unknown { color: var(--unknown); }
+</style>
+</head>
+<body>
+<header>
+  <h1>AGENT OFFICE</h1>
+  <span class="meta" id="clock"></span>
+  <div class="chips">
+    <span class="chip">워커 <b id="c-total">0</b></span>
+    <span class="chip">작업중 <b id="c-busy">0</b></span>
+    <span class="chip">정체 <b id="c-stalled">0</b></span>
+  </div>
+</header>
+
+<div id="scene-wrap"><canvas id="scene" width="960" height="400"></canvas></div>
+<div class="legend">
+  <span><i class="dot" style="background:var(--busy)"></i>작업중</span>
+  <span><i class="dot" style="background:var(--idle)"></i>대기(검수 홀드)</span>
+  <span><i class="dot" style="background:var(--stalled)"></i>정체(화면 멈춤)</span>
+  <span><i class="dot" style="background:var(--unknown)"></i>불명</span>
+</div>
+
+<div class="grid">
+  <div class="panel">
+    <h2>오늘 작업량</h2>
+    <div class="tiles" id="tiles"></div>
+    <div class="note">~/.claude/projects 트랜스크립트 합산 · 비용은 모델 단가 기반 추정치</div>
+  </div>
+  <div class="panel">
+    <h2>쿼터 · 권고 페이스</h2>
+    <div id="gauges"><div class="empty">office/quota.json 을 만들면 게이지가 표시됩니다.</div></div>
+  </div>
+  <div class="panel">
+    <h2>에이전트</h2>
+    <table id="agents"></table>
+  </div>
+  <div class="panel">
+    <h2>태스크</h2>
+    <table id="tasks"></table>
+  </div>
+</div>
+
+<script>
+"use strict";
+const STATUS = {
+  busy:    { color: "#34d27b", label: "작업중" },
+  idle:    { color: "#f5c84b", label: "대기" },
+  stalled: { color: "#f2555a", label: "정체" },
+  unknown: { color: "#8a91a3", label: "불명" },
+};
+const KIND_HAT = { claude: "#e8a33d", codex: "#5aa2f0" }; // 안전모 색으로 종류 구분
+
+let state = { agents: [], usage: {}, quota: [], tasks: [], updated: null };
+const actors = new Map(); // id -> {x,y,tx,ty,seed}
+
+async function pull() {
+  try {
+    const res = await fetch("/api/state");
+    state = await res.json();
+    syncActors(); renderPanels();
+  } catch (e) { /* 서버 재시작 중 등 — 다음 틱에 재시도 */ }
+}
+
+function syncActors() {
+  const seen = new Set();
+  state.agents.forEach((a, i) => {
+    seen.add(a.id);
+    if (!actors.has(a.id)) {
+      const d = desk(i, state.agents.length);
+      actors.set(a.id, { x: d.x, y: d.y, tx: d.x, ty: d.y, seed: hash(a.id) });
+    }
+  });
+  for (const id of [...actors.keys()]) if (!seen.has(id)) actors.delete(id);
+}
+
+function hash(s) { let h = 7; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; }
+function rnd(seed, n) { return (hash(String(seed) + ":" + n) % 1000) / 1000; }
+
+// ---------- 픽셀 씬 ----------
+const cv = document.getElementById("scene"), ctx = cv.getContext("2d");
+const P = 4, W = cv.width / P, H = cv.height / P; // 240 x 100 논리 픽셀
+const FLOOR_Y = 46;
+
+function desk(i, total) {
+  const cols = Math.max(3, Math.ceil(total / 2));
+  const gx = (W - 30) / cols;
+  const col = i % cols, row = Math.floor(i / cols);
+  return { x: 18 + col * gx + gx / 2, y: FLOOR_Y + 12 + row * 24 };
+}
+
+function px(x, y, w, h, c) { ctx.fillStyle = c; ctx.fillRect(Math.round(x) * P, Math.round(y) * P, w * P, h * P); }
+
+function drawSky() {
+  const g = ctx.createLinearGradient(0, 0, 0, FLOOR_Y * P);
+  g.addColorStop(0, "#2b2440"); g.addColorStop(.6, "#5a3a55"); g.addColorStop(1, "#8a4a5a");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W * P, FLOOR_Y * P);
+  for (let b = 0; b < 22; b++) {
+    const bw = 8 + Math.floor(rnd("b", b) * 10);
+    const bh = 14 + Math.floor(rnd("h", b) * 22);
+    const bx = Math.floor((b * 41 + rnd("x", b) * 20) % (W - bw)); // 황금각 느낌으로 고르게 분산
+    px(bx, FLOOR_Y - bh, bw, bh, "#161226");
+    for (let wy = 0; wy < bh - 3; wy += 3)
+      for (let wx = 1; wx < bw - 1; wx += 3)
+        if (rnd(b, wx * 100 + wy) > .55) px(bx + wx, FLOOR_Y - bh + 1 + wy, 1, 1, "#e8c56a");
+  }
+}
+
+function drawFloor() {
+  px(0, FLOOR_Y, W, H - FLOOR_Y, "#3a3f55");
+  for (let y = FLOOR_Y; y < H; y += 4)
+    for (let x = (y / 4) % 2 ? 0 : 4; x < W; x += 8) px(x, y, 4, 4, "#363b50");
+  px(0, FLOOR_Y, W, 1, "#232636");
+}
+
+function drawDesk(x, y) {
+  px(x - 7, y + 4, 14, 2, "#6b4a2f"); px(x - 6, y + 6, 1, 3, "#503722"); px(x + 5, y + 6, 1, 3, "#503722");
+  px(x - 4, y - 1, 6, 4, "#20232f"); px(x - 3, y, 4, 2, "#3d4a6b"); // 모니터
+}
+
+function drawAgent(a, t) {
+  const act = actors.get(a.id); if (!act) return;
+  const st = STATUS[a.status] || STATUS.unknown;
+  const idle = a.status === "idle" || a.status === "unknown";
+
+  // 대기 중이면 책상 근처를 어슬렁, 아니면 책상으로 복귀
+  if (idle && Math.random() < 0.01) {
+    const d = deskOf(a); act.tx = d.x + (Math.random() * 20 - 10); act.ty = d.y + (Math.random() * 8 - 4);
+  } else if (!idle) { const d = deskOf(a); act.tx = d.x; act.ty = d.y; }
+  act.x += (act.tx - act.x) * 0.04; act.y += (act.ty - act.y) * 0.04;
+
+  const x = act.x, y = act.y;
+  const bob = a.status === "busy" ? Math.round(Math.sin(t / 150 + act.seed) * .8) : 0;
+  const shake = a.status === "stalled" ? Math.round(Math.sin(t / 60) * .6) : 0;
+
+  px(x - 2 + shake, y - 10 + bob, 4, 2, KIND_HAT[a.kind] || "#8a91a3"); // 안전모
+  px(x - 2 + shake, y - 8 + bob, 4, 3, "#e9c9a8");                       // 얼굴
+  px(x - 2 + shake, y - 5 + bob, 4, 4, a.kind === "codex" ? "#31518a" : "#7a4a9a"); // 몸
+  px(x - 2, y - 1, 1, 2, "#20232f"); px(x + 1, y - 1, 1, 2, "#20232f");   // 다리
+  px(x + 3, y - 11 + bob, 2, 2, st.color);                                // 상태등
+
+  ctx.font = "9px ui-monospace, monospace"; ctx.textAlign = "center";
+  ctx.fillStyle = "#c9cede";
+  ctx.fillText(a.name, x * P, (y + 5) * P);
+  const tag = st.label + (a.bubble ? " · " + a.bubble.slice(0, 22) : "");
+  const tw = ctx.measureText(tag).width + 8;
+  ctx.fillStyle = "rgba(10,12,18,.85)";
+  ctx.fillRect(x * P - tw / 2, (y - 16) * P, tw, 12);
+  ctx.fillStyle = st.color;
+  ctx.fillText(tag, x * P, (y - 16) * P + 9);
+}
+
+function deskOf(a) { return desk(state.agents.findIndex(v => v.id === a.id), state.agents.length); }
+
+function frame(t) {
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  drawSky(); drawFloor();
+  state.agents.forEach((a, i) => { const d = desk(i, state.agents.length); drawDesk(d.x, d.y); });
+  state.agents.forEach(a => drawAgent(a, t));
+  if (!state.agents.length) {
+    ctx.font = "12px ui-monospace, monospace"; ctx.textAlign = "center"; ctx.fillStyle = "#9aa1b5";
+    ctx.fillText("출근한 에이전트가 없습니다 — tmux에서 claude를 띄우면 나타납니다", cv.width / 2, cv.height / 2 + 30);
+  }
+  requestAnimationFrame(frame);
+}
+
+// ---------- 패널 ----------
+const fmt = n => n >= 1e9 ? (n / 1e9).toFixed(1) + "B" : n >= 1e6 ? (n / 1e6).toFixed(1) + "M"
+              : n >= 1e3 ? (n / 1e3).toFixed(1) + "K" : String(n || 0);
+
+function renderPanels() {
+  const A = state.agents, u = state.usage || {};
+  document.getElementById("c-total").textContent = A.length;
+  document.getElementById("c-busy").textContent = A.filter(a => a.status === "busy").length;
+  document.getElementById("c-stalled").textContent = A.filter(a => a.status === "stalled").length;
+
+  document.getElementById("tiles").innerHTML = [
+    ["$" + (u.cost ?? 0).toFixed(2), "비용(추정)"], [fmt(u.calls), "호출"],
+    [fmt(u.input), "입력 tok"], [fmt(u.output), "출력 tok"],
+    [fmt(u.cache_read), "캐시읽 tok"], [fmt(u.cache_write), "캐시쓰 tok"],
+  ].map(([v, k]) => `<div class="tile"><div class="v">${v}</div><div class="k">${k}</div></div>`).join("");
+
+  const gauges = document.getElementById("gauges");
+  if (state.quota.length) {
+    gauges.innerHTML = state.quota.map(q => {
+      const used = Math.min(100, q.used_pct ?? 0), pace = q.pace_pct;
+      const over = pace != null && q.over_pct > 0;
+      const sub = pace == null ? ""
+        : over ? `권고 페이스 ${pace}% ｜ <span class="over-txt">초과 +${q.over_pct}%p</span>`
+               : `권고 페이스 ${pace}% ｜ <span class="ok-txt">잔여권고 ${q.headroom_pct}%</span>`;
+      return `<div class="gauge">
+        <div class="row1"><span>${q.name}</span><span class="pct">${used}%${q.resets_at ? " · " + q.resets_at.slice(5, 16).replace("T", " ") + " 리셋" : ""}</span></div>
+        <div class="bar"><div class="fill${over ? " over" : ""}" style="width:${used}%"></div>
+          ${pace != null ? `<div class="marker" style="left:${pace}%"></div>` : ""}</div>
+        <div class="row2">${sub}</div></div>`;
+    }).join("");
+  }
+
+  document.getElementById("agents").innerHTML = A.length ? A.map(a => {
+    const st = STATUS[a.status] || STATUS.unknown;
+    const extra = a.status === "stalled" ? ` ${Math.floor(a.unchanged_secs / 60)}분째` : "";
+    return `<tr><td class="status s-${a.status}">● ${st.label}${extra}</td>
+      <td>${a.name} <span style="color:var(--ink3)">(${a.kind})</span>
+      <span class="bubble">${esc(a.bubble)}</span></td></tr>`;
+  }).join("") : `<tr><td class="empty">감시 중인 에이전트 없음</td></tr>`;
+
+  document.getElementById("tasks").innerHTML = (state.tasks || []).length ? state.tasks.map(t =>
+    `<tr><td class="status">${esc(t.status || "")}</td><td>${esc(t.title || "")}
+     ${t.owner ? `<span style="color:var(--ink3)"> · ${esc(t.owner)}</span>` : ""}</td></tr>`
+  ).join("") : `<tr><td class="empty">office/tasks.json 을 만들면 표시됩니다.</td></tr>`;
+}
+
+function esc(s) { return String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+setInterval(() => {
+  document.getElementById("clock").textContent = new Date().toLocaleTimeString("ko-KR");
+}, 1000);
+setInterval(pull, 3000);
+pull();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+[
+  { "title": "쿼터 권고 페이스 게이지 검수", "status": "진행중", "owner": "나" },
+  { "title": "와처 오탐 수정 검증", "status": "관찰중", "owner": "나" },
+  { "title": "오너 포트폴리오 사이트 P3 구현", "status": "대기", "owner": "SubPM" }
+]
