@@ -1,3 +1,6 @@
 {
-  "webhook_url": "https://discord.com/api/webhooks/여기에/웹훅-URL"
+  "webhook_url": "https://discord.com/api/webhooks/여기에/웹훅-URL (notify.py 발신용)",
+  "bot_token": "봇 토큰 (bot.py 양방향용 — 개발자 포털에서 발급, MESSAGE CONTENT INTENT 켜기)",
+  "channel_id": "명령 받을 채널 ID (비우면 모든 채널)",
+  "allowed_user_ids": []
 }

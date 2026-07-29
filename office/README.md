@@ -114,7 +114,28 @@ python3 office/notify.py report     # 리포트 1회만
 - **⚡소모 알림**: 사용량이 50/80/95% 임계를 돌파하는 순간 1회 알림
 
 웹훅 미설정이면 dry-run으로 stdout에 출력한다 (형식 확인용).
-채팅 명령 수신(양방향 봇)은 게이트웨이 연결이 필요해서 Phase 4 후보.
+
+## 양방향 Discord 봇 (Phase 4)
+
+채팅으로 사무실을 조작한다. stdlib만으로 게이트웨이 WebSocket에 직접 붙는다:
+
+```bash
+# discord.json에 bot_token(+ channel_id 권장) 채우고
+python3 office/bot.py
+```
+
+| 명령 | 동작 |
+|------|------|
+| `!사무실` | 워커·태스크 현황 요약 |
+| `!리포트` | 쿼터 게이지 리포트 |
+| `!추가 제목 \| 프롬프트 \| 디렉토리` | 태스크 등록 → PM 루프가 자동 출근 |
+| `!완료 t3` / `!중단 t3` | 검수 확정 / 강제 중단 (세션 정리 포함) |
+| `!도움말` | 명령어 안내 |
+
+봇 준비: [개발자 포털](https://discord.com/developers/applications)에서 앱 생성 →
+Bot 탭에서 토큰 발급 + **MESSAGE CONTENT INTENT 켜기** → OAuth2 URL(scope `bot`,
+권한 Send Messages/Read Message History)로 서버에 초대. `channel_id`를 지정하면
+그 채널만 듣고, `allowed_user_ids`를 채우면 해당 유저만 명령할 수 있다.
 
 ## 환경변수
 
@@ -137,5 +158,6 @@ python3 office/notify.py report     # 리포트 1회만
   정체·컨텍스트 잔여 20% 조기 경보
 - **Phase 3 (완료)**: Discord 웹훅 알림(이벤트·정기 리포트·⚡소모 알림),
   쿼터 자동 갱신(윈도우 소비량 계산 + 리셋 자동 전진)
-- **Phase 4 (후보)**: 양방향 Discord 봇(게이트웨이) — 채팅으로 태스크 추가/검수 확정,
-  Codex 소비량 자동 집계
+- **Phase 4 (완료)**: 양방향 Discord 봇 — 채팅으로 태스크 추가/검수 확정/현황 조회
+- **다음 후보**: Codex 소비량 자동 집계, 워커 화면 미리보기(`!화면 t3`),
+  검수 diff 요약 자동 첨부

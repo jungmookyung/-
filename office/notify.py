@@ -92,7 +92,7 @@ def quota_lines(state):
     return lines
 
 
-def report(state):
+def report_text(state):
     now = datetime.now().astimezone().strftime("%m-%d %H:%M")
     u = state.get("usage", {})
     parts = [f"📊 쿼터 리포트 ({now} 기준)"]
@@ -108,7 +108,11 @@ def report(state):
         busy = sum(1 for a in agents if a["status"] == "busy")
         stalled = sum(1 for a in agents if a["status"] == "stalled")
         parts.append(f'워커 {len(agents)} (작업중 {busy}, 정체 {stalled})')
-    return post("\n".join(parts))
+    return "\n".join(parts)
+
+
+def report(state):
+    return post(report_text(state))
 
 
 def check_thresholds(state, alerted):

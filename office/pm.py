@@ -154,19 +154,20 @@ def next_id(tasks):
     return f"t{max(nums, default=0) + 1}"
 
 
-def cmd_add(args):
+def add_task(title, prompt=None, workdir="~", owner="나"):
     tasks = load_json("tasks.json", [])
-    task = {"id": next_id(tasks), "title": args.title, "prompt": args.prompt or args.title,
-            "dir": args.dir, "owner": args.owner, "status": "대기", "worker": None}
+    task = {"id": next_id(tasks), "title": title, "prompt": prompt or title,
+            "dir": workdir, "owner": owner, "status": "대기", "worker": None}
     tasks.append(task)
     save_tasks(tasks)
-    print(f'큐에 추가: {task["id"]} — {task["title"]}')
+    return task
 
 
-def cmd_finish(args, final_status):
+def finish_task(task_id, final_status):
+    """검수 확정(완료) 또는 강제 중단. 성공하면 태스크, 없으면 None."""
     tasks = load_json("tasks.json", [])
     for task in tasks:
-        if task.get("id") == args.id:
+        if task.get("id") == task_id:
             session = task.get("worker")
             if session and session_alive(session):
                 sh(["tmux", "kill-session", "-t", session])
@@ -174,9 +175,19 @@ def cmd_finish(args, final_status):
             emit(task, "done" if final_status == "완료" else "lost",
                  f'{task["title"]} — {final_status} 처리, 세션 정리')
             save_tasks(tasks)
-            return
-    print(f"태스크 없음: {args.id}", file=sys.stderr)
-    sys.exit(1)
+            return task
+    return None
+
+
+def cmd_add(args):
+    task = add_task(args.title, args.prompt, args.dir, args.owner)
+    print(f'큐에 추가: {task["id"]} — {task["title"]}')
+
+
+def cmd_finish(args, final_status):
+    if finish_task(args.id, final_status) is None:
+        print(f"태스크 없음: {args.id}", file=sys.stderr)
+        sys.exit(1)
 
 
 def cmd_status(_args):
