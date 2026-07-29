@@ -71,6 +71,18 @@
   .metric .k{font-size:11.5px;color:var(--sub);font-weight:700}
   .metric .v{font-size:19px;font-weight:800;font-variant-numeric:tabular-nums;margin-top:2px}
   .foot{font-size:11px;color:var(--sub);margin-top:14px;line-height:1.5}
+
+  .cmpwrap{overflow-x:auto}
+  table.cmp{width:100%;border-collapse:collapse;font-size:13.5px;min-width:460px}
+  table.cmp th{text-align:right;font-size:11.5px;color:var(--sub);font-weight:700;padding:0 10px 8px;border-bottom:1px solid var(--line)}
+  table.cmp th:first-child{text-align:left}
+  table.cmp td{padding:11px 10px;border-bottom:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums}
+  table.cmp td:first-child{text-align:left;font-weight:700}
+  table.cmp tr.best td{background:var(--good-soft)}
+  table.cmp tr.best td:first-child::after{content:" 👑";}
+  table.cmp .pos{color:var(--accent-2);font-weight:800}
+  table.cmp .neg{color:var(--danger);font-weight:800}
+  .badge{display:inline-block;font-size:10.5px;font-weight:800;color:#fff;background:var(--accent-2);border-radius:5px;padding:1px 6px;margin-left:6px;vertical-align:middle}
 </style>
 
 <div class="app">
@@ -172,6 +184,12 @@
       </div>
     </div>
   </div>
+
+  <div class="card" style="margin-top:14px">
+    <h2 id="cmpTitle">채널별 비교 — 같은 조건으로 어디가 제일 남나</h2>
+    <div class="cmpwrap"><table class="cmp" id="cmpTable"></table></div>
+    <div class="foot" id="cmpFoot"></div>
+  </div>
 </div>
 
 <script>
@@ -181,8 +199,8 @@ var mode="fwd", adUnit="won";
 function won(n){ return (Math.round(n)||0).toLocaleString("ko-KR"); }
 function pct(x){ return (Math.round(x*10)/10).toLocaleString("ko-KR")+"%"; }
 
-function calc(){
-  var feeR=(parseFloat($("#feeRate").value)||0)/100;
+function calc(feeOverride){
+  var feeR=(feeOverride!=null ? feeOverride : (parseFloat($("#feeRate").value)||0))/100;
   var cost=parseFloat($("#cost").value)||0;
   var ship=parseFloat($("#ship").value)||0;
   var pack=parseFloat($("#pack").value)||0;
@@ -258,6 +276,52 @@ function render(){
 
   $("#bep").textContent = isNaN(r.bep)?"—":won(r.bep)+"원";
   $("#totalCost").textContent = won(r.totalCost)+"원";
+
+  buildCmp();
+}
+
+var CHANNELS=[
+  {name:"스마트스토어", fee:5.5},
+  {name:"쿠팡", fee:10.8},
+  {name:"11번가", fee:12},
+  {name:"지마켓·옥션", fee:12},
+  {name:"자사몰·카페24", fee:3.4}
+];
+function buildCmp(){
+  var rev = mode==="rev";
+  $("#cmpTitle").textContent = rev
+    ? "채널별 비교 — 같은 마진율을 맞추는 판매가"
+    : "채널별 비교 — 같은 판매가로 어디가 제일 남나";
+  var results=CHANNELS.map(function(ch){
+    var r=calc(ch.fee);
+    return {name:ch.name, fee:ch.fee, P:r.P, profit:r.profit, margin:r.marginPct};
+  });
+  var valid=results.filter(function(x){return !isNaN(x.P)&&isFinite(x.P);});
+  // best: fwd = 최고 순이익 / rev = 최저 권장가
+  var best=null;
+  valid.forEach(function(x){
+    if(!best){best=x;return;}
+    if(rev){ if(x.P<best.P) best=x; }
+    else { if(x.profit>best.profit) best=x; }
+  });
+  var head = rev
+    ? '<tr><th>채널</th><th>수수료</th><th>권장 판매가</th><th>순이익</th></tr>'
+    : '<tr><th>채널</th><th>수수료</th><th>순이익</th><th>마진율</th></tr>';
+  var body=results.map(function(x){
+    var isBest = best && x.name===best.name;
+    var money=function(v){ var cls=v<0?"neg":"pos"; return '<span class="'+cls+'">'+won(v)+'원</span>'; };
+    if(rev){
+      var priceCell = (isNaN(x.P)||!isFinite(x.P)) ? '<span class="neg">불가</span>' : won(x.P)+'원';
+      return '<tr class="'+(isBest?'best':'')+'"><td>'+x.name+(isBest?'<span class="badge">가장 경쟁력</span>':'')+
+        '</td><td>'+x.fee+'%</td><td>'+priceCell+'</td><td>'+ (isNaN(x.P)?'—':money(x.profit)) +'</td></tr>';
+    }
+    return '<tr class="'+(isBest?'best':'')+'"><td>'+x.name+(isBest?'<span class="badge">최고 마진</span>':'')+
+      '</td><td>'+x.fee+'%</td><td>'+money(x.profit)+'</td><td>'+(Math.round(x.margin*10)/10)+'%</td></tr>';
+  }).join("");
+  $("#cmpTable").innerHTML=head+body;
+  $("#cmpFoot").textContent = rev
+    ? "같은 마진율을 유지하면서 가장 낮은 가격에 팔 수 있는 채널이 가격 경쟁에 유리합니다. 수수료율은 예시 기본값이니 본인 계약 요율로 수정하세요."
+    : "같은 판매가·비용 기준, 수수료만 채널별로 바꿔 순이익을 비교합니다. 마켓은 수수료가 높은 대신 유입이 많고, 자사몰은 수수료가 낮은 대신 광고비가 듭니다.";
 }
 
 /* 이벤트 */
