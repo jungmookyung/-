@@ -248,14 +248,19 @@ function renderPanels() {
   const gauges = document.getElementById("gauges");
   if (state.quota.length) {
     gauges.innerHTML = state.quota.map(q => {
-      const used = Math.min(100, q.used_pct ?? 0), pace = q.pace_pct;
+      const usedReal = q.used_pct ?? 0, used = Math.min(100, usedReal), pace = q.pace_pct;
       const over = pace != null && q.over_pct > 0;
       const sub = pace == null ? ""
         : q.expired ? `<span class="over-txt">리셋 지남 — quota.json 갱신 필요</span>`
         : over ? `권고 페이스 ${pace}% ｜ <span class="over-txt">초과 +${q.over_pct}%p</span>`
                : `권고 페이스 ${pace}% ｜ <span class="ok-txt">잔여권고 ${q.headroom_pct}%</span>`;
+      const budget = q.budget
+        ? ((q.auto || {}).metric === "output_tokens"
+            ? ` · ${fmt(q.used_value)}/${fmt(q.budget)} tok`
+            : ` · $${q.used_value}/$${q.budget}`)
+        : "";
       return `<div class="gauge">
-        <div class="row1"><span>${q.name}</span><span class="pct">${used}%${q.resets_at ? " · " + q.resets_at.slice(5, 16).replace("T", " ") + " 리셋" : ""}</span></div>
+        <div class="row1"><span>${esc(q.name)}${q.auto ? ' <span style="color:var(--ink3)">auto</span>' : ""}</span><span class="pct">${usedReal}%${budget}${q.resets_at ? " · " + q.resets_at.slice(5, 16).replace("T", " ") + " 리셋" : ""}</span></div>
         <div class="bar"><div class="fill${over ? " over" : ""}" style="width:${used}%"></div>
           ${pace != null ? `<div class="marker" style="left:${pace}%"></div>` : ""}</div>
         <div class="row2">${sub}</div></div>`;

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Agent Office — a pixel-office dashboard that watches Claude Code / Codex workers running in tmux and visualizes their status. Phase 1 (watcher + dashboard) and Phase 2 (PM bot orchestrating a task queue) are done; Phase 3 (Discord integration, auto quota updates) is on the roadmap in `office/README.md`. Documentation, comments, and UI text are in Korean.
+Agent Office — a pixel-office dashboard that watches Claude Code / Codex workers running in tmux and visualizes their status. Phases 1–3 are done: watcher + dashboard, PM bot orchestrating a task queue, and Discord webhook notifications with auto quota updates. Phase 4 candidates are in the roadmap in `office/README.md`. Documentation, comments, and UI text are in Korean.
 
 ## Running
 
@@ -22,13 +22,15 @@ Two files do all the work:
 
 - **`office/office.py`** — single-file server. A background collector thread loops every `OFFICE_POLL` seconds and assembles a global `_state` dict (guarded by `_lock`) from four sources:
   1. **Agents**: `tmux list-panes -a` + `capture-pane`, classifying each pane as busy/idle/stalled/unknown by matching `BUSY_MARKERS`/`IDLE_MARKERS`.
-  2. **Usage**: sums today's token usage and estimated cost from `~/.claude/projects/**/*.jsonl` transcripts, using the `PRICE` table (USD per MTok per model family).
-  3. **Quota**: `office/quota.json` (manually maintained; see `quota.json.example`), enriched by `with_pace()` which computes the recommended pace = fraction of the quota window elapsed, derived from `resets_at` and `window_days`/`window_hours`.
+  2. **Usage**: token usage and estimated cost from `~/.claude/projects/**/*.jsonl` transcripts via `usage_events(since_epoch)`, using the `PRICE` table (USD per MTok per model family). Per-file parse results are cached in `_usage_cache` keyed by (mtime, size), and files with mtime older than `since` are skipped entirely — don't break either property, weekly-window scans depend on them.
+  3. **Quota**: `office/quota.json` (see `quota.json.example`), enriched by `with_pace()` which computes the recommended pace = fraction of the quota window elapsed, derived from `resets_at` and `window_days`/`window_hours`. Entries with an `auto: {metric, budget}` block get `used_pct` computed from actual window consumption (`autofill_quota()`), and their `resets_at` auto-advances past expiry (`roll_windows()`, persisted back to quota.json *before* computed fields are added — keep that ordering). Entries without `auto` are manually maintained.
   4. **Tasks**: `office/tasks.json` (see `tasks.json.example`).
 
   The HTTP handler serves `office/web/` statically plus one JSON endpoint, `GET /api/state`.
 
 - **`office/web/index.html`** — self-contained frontend (inline CSS/JS, no framework). Polls `/api/state` and renders the pixel office on a `<canvas>` plus panels for usage, quota gauges, and the task board.
+
+- **`office/notify.py`** — the Phase 3 Discord notifier, webhook-outbound only (no gateway/bot token). Consumes `GET /api/state` from the running server plus a byte-offset tail of `events.jsonl`; sends event forwards, a periodic quota report (text gauge with the `|` pace marker), and one-shot threshold alerts (`OFFICE_ALERT_THRESHOLDS`, re-armed when usage drops after a window reset). Webhook URL from `OFFICE_DISCORD_WEBHOOK` or `office/discord.json`; without one it dry-runs to stdout, which is how it's tested. `notify.py report` sends a single report and exits.
 
 - **`office/pm.py`** — the Phase 2 PM bot, a separate process from the server. Reads `office/tasks.json` as a live queue and drives task status transitions `대기 → 작업중 → 검수대기 → 완료/중단`: spawns tmux workers (`agent-<id>`, binary from `OFFICE_CLAUDE_BIN`, up to `OFFICE_MAX_WORKERS`) for queued tasks, marks a task 검수대기 when its worker transitions busy→idle after having worked, and emits events (spawn/done/stalled/context_low/lost) to `office/events.jsonl`, which the dashboard shows in the 알림 panel. Context warning fires when the status area shows `Context ... N%` with N ≤ `OFFICE_CONTEXT_WARN_PCT` (20). CLI: `add/done/kill/status`; no subcommand runs the loop. Imports `capture`/`classify` from office.py; `tasks.json` writes are atomic (temp file + `os.replace`) because the server reads it concurrently.
 

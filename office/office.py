@@ -13,7 +13,7 @@ import re
 import subprocess
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -139,53 +139,80 @@ def price_for(model):
     return PRICE["sonnet"]
 
 
-def scan_usage():
+_usage_cache = {}  # path -> ((mtime, size), [(epoch, cost, in, out, cache_r, cache_w)])
+
+
+def _file_events(path):
+    """트랜스크립트 한 파일의 usage 레코드. (mtime, size)가 같으면 캐시 재사용."""
+    try:
+        st = os.stat(path)
+    except OSError:
+        return []
+    key = (st.st_mtime, st.st_size)
+    cached = _usage_cache.get(path)
+    if cached and cached[0] == key:
+        return cached[1]
+    events = []
+    try:
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            for line in fh:
+                if '"usage"' not in line:
+                    continue
+                try:
+                    rec = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                msg = rec.get("message") or {}
+                usage = msg.get("usage")
+                ts = rec.get("timestamp")
+                if not usage or not ts:
+                    continue
+                try:
+                    when = datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp()
+                except ValueError:
+                    continue
+                inp = usage.get("input_tokens", 0)
+                out = usage.get("output_tokens", 0)
+                cr = usage.get("cache_read_input_tokens", 0)
+                cw = usage.get("cache_creation_input_tokens", 0)
+                p_in, p_out, p_cr, p_cw = price_for(msg.get("model"))
+                cost = (inp * p_in + out * p_out + cr * p_cr + cw * p_cw) / 1e6
+                events.append((when, cost, inp, out, cr, cw))
+    except OSError:
+        return []
+    _usage_cache[path] = (key, events)
+    return events
+
+
+def usage_events(since_epoch):
+    """since 이후의 usage 레코드 전부. mtime이 since보다 오래된 파일은 건너뛴다."""
     base = os.path.expanduser("~/.claude/projects")
-    today = datetime.now().astimezone().date()
-    total = {"calls": 0, "input": 0, "output": 0, "cache_read": 0, "cache_write": 0, "cost": 0.0}
     if not os.path.isdir(base):
-        return total
-    midnight = datetime.combine(today, datetime.min.time()).astimezone().timestamp()
+        return []
+    out = []
     for dirpath, _dirs, files in os.walk(base):
         for fname in files:
             if not fname.endswith(".jsonl"):
                 continue
             path = os.path.join(dirpath, fname)
             try:
-                if os.path.getmtime(path) < midnight:
+                if os.path.getmtime(path) < since_epoch:
                     continue
-                with open(path, encoding="utf-8", errors="replace") as fh:
-                    for line in fh:
-                        if '"usage"' not in line:
-                            continue
-                        try:
-                            rec = json.loads(line)
-                        except json.JSONDecodeError:
-                            continue
-                        msg = rec.get("message") or {}
-                        usage = msg.get("usage")
-                        ts = rec.get("timestamp")
-                        if not usage or not ts:
-                            continue
-                        try:
-                            when = datetime.fromisoformat(ts.replace("Z", "+00:00"))
-                        except ValueError:
-                            continue
-                        if when.astimezone().date() != today:
-                            continue
-                        inp = usage.get("input_tokens", 0)
-                        out = usage.get("output_tokens", 0)
-                        cr = usage.get("cache_read_input_tokens", 0)
-                        cw = usage.get("cache_creation_input_tokens", 0)
-                        p_in, p_out, p_cr, p_cw = price_for(msg.get("model"))
-                        total["calls"] += 1
-                        total["input"] += inp
-                        total["output"] += out
-                        total["cache_read"] += cr
-                        total["cache_write"] += cw
-                        total["cost"] += (inp * p_in + out * p_out + cr * p_cr + cw * p_cw) / 1e6
             except OSError:
                 continue
+            out.extend(e for e in _file_events(path) if e[0] >= since_epoch)
+    return out
+
+
+def aggregate(events):
+    total = {"calls": 0, "input": 0, "output": 0, "cache_read": 0, "cache_write": 0, "cost": 0.0}
+    for _ts, cost, inp, out, cr, cw in events:
+        total["calls"] += 1
+        total["input"] += inp
+        total["output"] += out
+        total["cache_read"] += cr
+        total["cache_write"] += cw
+        total["cost"] += cost
     total["cost"] = round(total["cost"], 2)
     return total
 
@@ -203,6 +230,67 @@ def load_json(name, default):
         return default
 
 
+def window_secs(w):
+    return float(w.get("window_hours", w.get("window_days", 7) * 24)) * 3600
+
+
+def roll_windows(windows):
+    """auto 항목(또는 auto_roll)의 리셋 시각이 지났으면 다음 주기로 넘긴다.
+    돌려받은 changed가 True면 quota.json을 다시 써야 한다."""
+    now = datetime.now(timezone.utc)
+    changed = False
+    for w in windows:
+        if not (w.get("auto") or w.get("auto_roll")):
+            continue
+        try:
+            resets = datetime.fromisoformat(w["resets_at"])
+            step = timedelta(seconds=window_secs(w))
+        except (KeyError, ValueError):
+            continue
+        while resets <= now:
+            resets += step
+            changed = True
+        w["resets_at"] = resets.isoformat(timespec="seconds")
+    return windows, changed
+
+
+def autofill_quota(windows):
+    """auto: {metric: cost|output_tokens, budget: N} 항목의 used_pct를
+    현재 윈도우 구간의 실제 소비량으로 채운다. (Claude 트랜스크립트 기준)"""
+    auto = [w for w in windows if isinstance(w.get("auto"), dict)]
+    if not auto:
+        return
+    starts = {}
+    for w in auto:
+        try:
+            resets = datetime.fromisoformat(w["resets_at"]).timestamp()
+        except (KeyError, ValueError):
+            continue
+        starts[id(w)] = resets - window_secs(w)
+    if not starts:
+        return
+    events = usage_events(min(starts.values()))
+    for w in auto:
+        start = starts.get(id(w))
+        if start is None:
+            continue
+        metric = w["auto"].get("metric", "cost")
+        in_window = [e for e in events if e[0] >= start]
+        value = sum(e[1] for e in in_window) if metric == "cost" else sum(e[3] for e in in_window)
+        w["used_value"] = round(value, 2)
+        budget = float(w["auto"].get("budget", 0))
+        if budget > 0:
+            w["used_pct"] = round(value / budget * 100, 1)
+            w["budget"] = budget
+
+
+def save_quota(windows):
+    tmp = os.path.join(ROOT, "quota.json.tmp")
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(windows, fh, ensure_ascii=False, indent=2)
+    os.replace(tmp, os.path.join(ROOT, "quota.json"))
+
+
 def with_pace(windows):
     """권고 페이스 = 윈도우 경과시간 비율. 초과분은 +%p로."""
     now = datetime.now(timezone.utc)
@@ -211,7 +299,7 @@ def with_pace(windows):
         item = dict(w)
         try:
             resets = datetime.fromisoformat(w["resets_at"])
-            window = float(w.get("window_hours", w.get("window_days", 7) * 24)) * 3600
+            window = window_secs(w)
             remaining = (resets - now).total_seconds()
             item["expired"] = remaining <= 0  # 리셋 지남 — used_pct 갱신 필요
             remaining = max(0.0, remaining)
@@ -247,8 +335,15 @@ def load_events(limit=15):
 def collector():
     while True:
         agents = scan_agents()
-        usage = scan_usage()
-        quota = with_pace(load_json("quota.json", []))
+        midnight = datetime.combine(datetime.now().astimezone().date(),
+                                    datetime.min.time()).astimezone().timestamp()
+        usage = aggregate(usage_events(midnight))
+        quota_cfg = load_json("quota.json", [])
+        quota_cfg, rolled = roll_windows(quota_cfg)
+        if rolled:
+            save_quota(quota_cfg)  # 리셋 시각 전진분만 기록 (계산 필드는 저장 안 함)
+        autofill_quota(quota_cfg)
+        quota = with_pace(quota_cfg)
         tasks = load_json("tasks.json", [])
         events = load_events()
         with _lock:
