@@ -1,0 +1,236 @@
+<title>쇼핑몰 셀러 킷 — 마진 계산기 + 셀러 실무 세트</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --bg:#f4f6f9; --surface:#ffffff; --ink:#141821; --sub:#5a6172; --line:#e5e8ee;
+    --indigo:#2f4a7c; --indigo-d:#22375d; --green:#1f9e6b; --green-d:#177c53;
+    --danger:#c8503f; --soft:#eef3fb; --greensoft:#e8f6ee; --field:#f6f8fb;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{ --bg:#0c0e14; --surface:#141822; --ink:#eaedf4; --sub:#98a0b1; --line:#232a36;
+      --indigo:#7ea2e6; --indigo-d:#0f1116; --green:#4fd39a; --green-d:#2fae7d; --soft:#18202f; --greensoft:#12281f; --field:#1a1f29; }
+  }
+  :root[data-theme="dark"]{ --bg:#0c0e14; --surface:#141822; --ink:#eaedf4; --sub:#98a0b1; --line:#232a36; --indigo:#7ea2e6; --indigo-d:#0f1116; --green:#4fd39a; --green-d:#2fae7d; --soft:#18202f; --greensoft:#12281f; --field:#1a1f29; }
+  :root[data-theme="light"]{ --bg:#f4f6f9; --surface:#ffffff; --ink:#141821; --sub:#5a6172; --line:#e5e8ee; --indigo:#2f4a7c; --indigo-d:#22375d; --green:#1f9e6b; --green-d:#177c53; --soft:#eef3fb; --greensoft:#e8f6ee; --field:#f6f8fb; }
+
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Noto Sans KR",Roboto,sans-serif;
+    line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:760px;margin:0 auto;padding:0 20px}
+  .tnum{font-variant-numeric:tabular-nums}
+  .themebtn{position:fixed;top:14px;right:14px;z-index:20;cursor:pointer;border:1px solid var(--line);
+    background:var(--surface);color:var(--ink);border-radius:9px;font-weight:700;font-size:12px;padding:7px 11px}
+
+  /* HERO */
+  .hero{background:linear-gradient(160deg,var(--indigo),var(--indigo-d));color:#fff;padding:64px 0 52px;text-align:center}
+  .hero .wrap{max-width:720px}
+  .eyebrow{display:inline-block;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22);
+    color:#fff;font-size:12.5px;font-weight:700;letter-spacing:.02em;padding:5px 13px;border-radius:999px;margin-bottom:20px}
+  .hero h1{font-size:34px;line-height:1.28;margin:0 0 14px;font-weight:800;letter-spacing:-.02em;text-wrap:balance}
+  .hero h1 .hl{color:#ffd7cb;text-decoration:underline;text-decoration-color:rgba(255,215,203,.5);text-underline-offset:5px}
+  .hero p{font-size:16px;color:#dbe3f2;margin:0 auto 30px;max-width:540px}
+  .demo{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);border-radius:16px;padding:20px;max-width:440px;margin:0 auto}
+  .demo .cap{font-size:12px;color:#c6d2ea;font-weight:700;margin-bottom:12px;letter-spacing:.02em}
+  .demo .rows{display:flex;flex-direction:column;gap:7px;font-size:13.5px}
+  .demo .r{display:flex;justify-content:space-between;color:#e5ebf6}
+  .demo .r span:last-child{color:#ffb9a8}
+  .demo .r.pos span:last-child{color:#8ff0c2}
+  .demo .div{height:1px;background:rgba(255,255,255,.18);margin:5px 0}
+  .demo .net{display:flex;justify-content:space-between;align-items:baseline;font-weight:800}
+  .demo .net .big{font-size:24px;color:#8ff0c2}
+
+  .cta{display:inline-block;background:var(--green);color:#fff;font-weight:800;font-size:16px;
+    padding:15px 34px;border-radius:12px;text-decoration:none;box-shadow:0 8px 22px rgba(31,158,107,.35);transition:transform .12s}
+  .cta:hover{transform:translateY(-2px)}
+  .cta.small{font-size:14px;padding:12px 24px}
+  .subcta{display:block;margin-top:12px;font-size:12.5px;color:#c6d2ea}
+
+  /* SECTIONS */
+  section{padding:52px 0}
+  h2.sh{font-size:25px;font-weight:800;letter-spacing:-.02em;margin:0 0 8px;text-wrap:balance}
+  .lead{color:var(--sub);font-size:15px;margin:0 0 26px}
+  .center{text-align:center}
+
+  .pains{display:grid;gap:12px}
+  .pain{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--danger);
+    border-radius:0 12px 12px 0;padding:15px 18px}
+  .pain b{display:block;margin-bottom:2px}
+  .pain span{color:var(--sub);font-size:14px}
+
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media (max-width:640px){.cards{grid-template-columns:1fr}}
+  .icard{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px}
+  .icard .n{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:9px;
+    background:var(--soft);color:var(--indigo);font-weight:800;margin-bottom:12px}
+  .icard h3{font-size:17px;margin:0 0 6px;font-weight:800}
+  .icard p{font-size:13.5px;color:var(--sub);margin:0}
+  .tag{display:inline-block;font-size:11px;font-weight:800;color:var(--green);background:var(--greensoft);border-radius:6px;padding:2px 8px;margin-top:10px}
+
+  .steps{counter-reset:st;display:grid;gap:14px}
+  .step{display:flex;gap:16px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px}
+  .step .num{flex:none;width:38px;height:38px;border-radius:50%;background:var(--indigo);color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center}
+  .step h3{margin:0 0 3px;font-size:16px}
+  .step p{margin:0;font-size:14px;color:var(--sub)}
+
+  .faq{display:grid;gap:10px}
+  details{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:2px 18px}
+  summary{cursor:pointer;font-weight:700;padding:15px 0;list-style:none;position:relative}
+  summary::-webkit-details-marker{display:none}
+  summary::after{content:"+";position:absolute;right:0;color:var(--sub);font-weight:800}
+  details[open] summary::after{content:"–"}
+  details p{margin:0 0 15px;color:var(--sub);font-size:14px}
+
+  .pricebox{background:var(--surface);border:2px solid var(--indigo);border-radius:18px;padding:30px;text-align:center;max-width:440px;margin:0 auto}
+  .pricebox .incl{text-align:left;display:grid;gap:9px;margin:18px 0 24px}
+  .pricebox .incl div{display:flex;gap:9px;font-size:14.5px}
+  .pricebox .incl .ck{color:var(--green);font-weight:800}
+  .price{font-size:40px;font-weight:800;letter-spacing:-.02em}
+  .price s{font-size:19px;color:var(--sub);font-weight:600;margin-right:10px}
+  .pnote{font-size:12.5px;color:var(--sub);margin-top:6px}
+
+  .editnote{background:var(--greensoft);border:1px dashed var(--green);border-radius:10px;padding:12px 15px;font-size:12.5px;color:var(--ink);margin:22px auto 0;max-width:640px}
+  footer{border-top:1px solid var(--line);padding:26px 0 50px;color:var(--sub);font-size:12px;text-align:center}
+</style>
+
+<button class="themebtn" id="themeBtn">◐ 테마</button>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="wrap">
+    <span class="eyebrow">스마트스토어 · 쿠팡 · 자사몰 셀러를 위한</span>
+    <h1>5만 원어치 팔았는데,<br>남는 건 왜 <span class="hl">8천 원</span>일까?</h1>
+    <p>수수료·광고비·배송비·부가세를 다 빼면 마진은 순식간에 얇아집니다. 파는 순간이 아니라 <b>가격을 정하는 순간</b>에 미리 계산하세요.</p>
+    <div class="demo">
+      <div class="cap">🛒 마진 계산기 · 실제 화면</div>
+      <div class="rows">
+        <div class="r"><span>판매가</span><span style="color:#fff">29,900원</span></div>
+        <div class="r"><span>− 스마트스토어 수수료</span><span>1,645원</span></div>
+        <div class="r"><span>− 광고비</span><span>2,000원</span></div>
+        <div class="r"><span>− 배송·포장</span><span>3,500원</span></div>
+        <div class="r"><span>− 상품 원가</span><span>9,000원</span></div>
+        <div class="div"></div>
+        <div class="net"><span>= 순이익</span><span class="big tnum">13,756원</span></div>
+      </div>
+    </div>
+    <div style="margin-top:30px">
+      <a class="cta" href="#buy">지금 시작하기</a>
+      <span class="subcta">설치·가입 없이 브라우저에서 바로 · 평생 사용</span>
+    </div>
+  </div>
+</div>
+
+<!-- PAIN -->
+<section>
+  <div class="wrap">
+    <h2 class="sh">감으로 정한 가격, 이런 적 없으세요?</h2>
+    <p class="lead">셀러라면 한 번쯤 겪는 순간들입니다.</p>
+    <div class="pains">
+      <div class="pain"><b>"통장에 남은 게 왜 이것뿐이지?"</b><span>매출은 늘었는데 순이익은 그대로. 수수료·광고비가 어디로 샜는지 모른다.</span></div>
+      <div class="pain"><b>광고를 켜면 마진이 사라진다</b><span>ROAS는 나쁘지 않은데, 정작 상품당 얼마 남는지는 계산해 본 적이 없다.</span></div>
+      <div class="pain"><b>신상품 가격은 매번 눈치싸움</b><span>경쟁사보다 조금 싸게? 그러다 본전도 못 건지는 가격이 나온다.</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- WHAT'S INSIDE -->
+<section style="background:var(--surface)">
+  <div class="wrap">
+    <h2 class="sh">그래서, 이걸 준비했습니다</h2>
+    <p class="lead">가격을 <b>계산</b>하고, 고객을 <b>응대</b>하고, 비용을 <b>정리</b>하는 셀러 실무 세트.</p>
+    <div class="cards">
+      <div class="icard">
+        <div class="n">🛒</div>
+        <h3>마진 계산기</h3>
+        <p>원가·채널·광고·배송·부가세를 넣으면 1개당 순이익과 마진율이 바로. 채널만 고르면 수수료율 자동.</p>
+        <span class="tag">핵심 도구</span>
+      </div>
+      <div class="icard">
+        <div class="n">🎯</div>
+        <h3>판매가 역산</h3>
+        <p>"25% 남기려면 얼마에?" 목표 마진율을 넣으면 권장 판매가와 손익분기가를 계산.</p>
+        <span class="tag">가격 결정</span>
+      </div>
+      <div class="icard">
+        <div class="n">💬</div>
+        <h3>CS 답변 템플릿 10종</h3>
+        <p>배송지연·반품·불량·품절·환불지연·악성후기까지. 복붙 후 대괄호만 수정하면 끝.</p>
+        <span class="tag">시간 절약</span>
+      </div>
+      <div class="icard">
+        <div class="n">📊</div>
+        <h3>수수료·부가세 정리표</h3>
+        <p>채널별 수수료 범위, 마진에 꼭 넣을 비용 체크리스트, 부가세 짧은 정리까지 한 장에.</p>
+        <span class="tag">보너스</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW -->
+<section>
+  <div class="wrap">
+    <h2 class="sh">쓰는 법은 3단계</h2>
+    <p class="lead">설치도, 가입도, 엑셀 서식 찾기도 없습니다.</p>
+    <div class="steps">
+      <div class="step"><div class="num">1</div><div><h3>채널 고르고 비용 입력</h3><p>스마트스토어·쿠팡·자사몰 중 선택하면 수수료율이 자동으로 들어갑니다. 원가·광고·배송만 넣으세요.</p></div></div>
+      <div class="step"><div class="num">2</div><div><h3>순이익·마진율 확인</h3><p>1개 팔 때 진짜 남는 돈과 손익분기 판매가가 즉시 계산됩니다.</p></div></div>
+      <div class="step"><div class="num">3</div><div><h3>목표 마진으로 가격 확정</h3><p>남기고 싶은 마진율을 넣으면 권장 판매가가 나옵니다. 그 가격으로 등록하면 끝.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section style="background:var(--surface)">
+  <div class="wrap">
+    <h2 class="sh">자주 묻는 질문</h2>
+    <div class="faq" style="margin-top:22px">
+      <details><summary>설치나 가입이 필요한가요?</summary><p>아니요. 브라우저에서 링크만 열면 바로 씁니다. 데이터는 기기 밖으로 전송되지 않습니다.</p></details>
+      <details><summary>수수료율이 제 계약과 다르면요?</summary><p>기본값은 예시입니다. 판매 수수료율은 직접 수정할 수 있어요. 본인 정산 내역의 실제 요율을 넣으면 정확해집니다.</p></details>
+      <details><summary>세금 신고에 그대로 써도 되나요?</summary><p>이 도구는 <b>가격 결정용 추정</b>입니다. 부가세는 근사치로 반영되며, 정확한 신고는 홈택스·세무사 기준을 따르세요.</p></details>
+      <details><summary>스마트스토어 말고 쿠팡·자사몰도 되나요?</summary><p>네. 채널을 바꾸면 수수료 기본값이 바뀌고, 자사몰은 PG 수수료 기준으로 계산합니다.</p></details>
+    </div>
+  </div>
+</section>
+
+<!-- BUY -->
+<section id="buy">
+  <div class="wrap center">
+    <h2 class="sh">쇼핑몰 셀러 킷</h2>
+    <p class="lead">가격 계산 + 고객 응대 + 비용 정리, 한 번에.</p>
+    <div class="pricebox">
+      <div class="incl">
+        <div><span class="ck">✓</span> 마진 계산기 (판매가·역산·손익분기)</div>
+        <div><span class="ck">✓</span> CS 답변 템플릿 10종</div>
+        <div><span class="ck">✓</span> 수수료·부가세 정리표</div>
+        <div><span class="ck">✓</span> 평생 사용 · 업데이트 제공</div>
+      </div>
+      <div class="price"><s>[29,000원]</s>[14,900원]</div>
+      <div class="pnote">[론칭 기념 한정가 · 예시 가격입니다]</div>
+      <div style="margin-top:22px">
+        <a class="cta" href="[여기에_내_판매링크]">킷 받기</a>
+      </div>
+    </div>
+    <div class="editnote">
+      ✏️ <b>이 페이지는 템플릿입니다.</b> <code>[대괄호]</code> 부분(상점명·가격·구매 링크)을 본인 것으로 바꾸고,
+      판매 플랫폼(크몽·스마트스토어·라이트펀딩 등)에 그대로 올리거나 링크를 연결하세요.
+      가격은 예시이며, 근거 없는 수익 보장 문구는 넣지 마세요.
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    [내 상점명] · 문의 [이메일/카톡]<br>
+    본 도구의 계산은 참고용 추정이며, 실제 손익·세무는 본인 정산 내역과 세무 기준을 따릅니다.
+  </div>
+</footer>
+
+<script>
+  document.getElementById("themeBtn").addEventListener("click",function(){
+    var r=document.documentElement, cur=r.getAttribute("data-theme");
+    var next=cur==="dark"?"light":(cur==="light"?"dark":
+      (window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"light":"dark"));
+    r.setAttribute("data-theme",next);
+  });
+</script>

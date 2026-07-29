@@ -1,0 +1,346 @@
+<title>견적서·청구서 생성기 — 프리랜서/1인 사업자용</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --bg:#eef0f4; --chrome:#ffffff; --ink:#1a1d24; --sub:#606775; --line:#e3e6ec;
+    --accent:#2f4a7c; --accent-soft:#eaf0fb; --field:#f7f8fa; --paper:#ffffff;
+    --paper-ink:#1a1d24; --paper-line:#d7dbe2; --paper-head:#2f4a7c; --danger:#b23b3b;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{ --bg:#0e1016; --chrome:#161a22; --ink:#e9ecf3; --sub:#9aa2b2; --line:#252b36;
+      --accent:#7ea2e6; --accent-soft:#1a2436; --field:#1d222c; }
+  }
+  :root[data-theme="dark"]{ --bg:#0e1016; --chrome:#161a22; --ink:#e9ecf3; --sub:#9aa2b2; --line:#252b36; --accent:#7ea2e6; --accent-soft:#1a2436; --field:#1d222c; }
+  :root[data-theme="light"]{ --bg:#eef0f4; --chrome:#ffffff; --ink:#1a1d24; --sub:#606775; --line:#e3e6ec; --accent:#2f4a7c; --accent-soft:#eaf0fb; --field:#f7f8fa; }
+
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Noto Sans KR",Roboto,sans-serif;
+    line-height:1.5;font-size:14px}
+  .app{max-width:1180px;margin:0 auto;padding:18px 16px 80px}
+  .topbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+  .topbar h1{font-size:18px;margin:0;letter-spacing:-.02em;font-weight:800}
+  .topbar .spacer{flex:1}
+  .seg{display:inline-flex;background:var(--field);border:1px solid var(--line);border-radius:10px;padding:3px}
+  .seg button{border:none;background:transparent;color:var(--sub);font-weight:700;font-size:13px;
+    padding:7px 13px;border-radius:7px;cursor:pointer;font-family:inherit}
+  .seg button.on{background:var(--accent);color:#fff}
+  .btn{cursor:pointer;border:1px solid var(--line);background:var(--chrome);color:var(--ink);
+    border-radius:9px;font-weight:700;font-size:13px;padding:8px 13px;font-family:inherit}
+  .btn.primary{background:var(--accent);color:#fff;border-color:transparent}
+  .layout{display:grid;grid-template-columns:minmax(0,420px) minmax(0,1fr);gap:20px;align-items:start}
+  @media (max-width:900px){.layout{grid-template-columns:1fr}}
+
+  .panel{background:var(--chrome);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .panel h2{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--sub);margin:0 0 10px;font-weight:800}
+  .panel + .panel{margin-top:14px}
+  .frow{display:flex;gap:10px}
+  .frow > *{flex:1;min-width:0}
+  label.fl{display:block;font-size:12px;color:var(--sub);font-weight:600;margin:10px 0 4px}
+  .fl:first-child{margin-top:0}
+  input,textarea{width:100%;background:var(--field);color:var(--ink);border:1px solid var(--line);
+    border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit}
+  input:focus,textarea:focus{outline:2px solid var(--accent);border-color:transparent}
+  textarea{resize:vertical;min-height:44px}
+  .muted{color:var(--sub);font-size:12px}
+  .savebar{display:flex;gap:8px;margin-top:10px}
+  .savebar .btn{flex:1;padding:7px}
+
+  table.items{width:100%;border-collapse:collapse;margin-top:4px}
+  table.items th{font-size:11px;color:var(--sub);text-align:left;font-weight:700;padding:0 4px 6px}
+  table.items td{padding:3px 4px;vertical-align:top}
+  table.items input{padding:7px 8px}
+  .num{text-align:right;font-variant-numeric:tabular-nums}
+  .delrow{border:none;background:transparent;color:var(--danger);cursor:pointer;font-size:16px;padding:4px 6px;line-height:1}
+  .additem{margin-top:8px}
+  .opts{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:4px}
+  .opts label{display:flex;gap:6px;align-items:center;font-size:13px;cursor:pointer}
+
+  /* ===== 문서(종이) ===== */
+  .paperwrap{overflow-x:auto}
+  .paper{background:var(--paper);color:var(--paper-ink);width:100%;max-width:720px;margin:0 auto;
+    border:1px solid var(--paper-line);border-radius:6px;padding:34px 38px;
+    box-shadow:0 8px 30px rgba(20,30,60,.10)}
+  .doc-title{text-align:center;font-size:30px;font-weight:800;letter-spacing:.28em;margin:0 0 4px;color:var(--paper-head)}
+  .doc-title .u{border-bottom:3px solid var(--paper-head);padding-bottom:6px}
+  .doc-meta{display:flex;justify-content:space-between;font-size:12px;color:#555;margin:14px 2px 20px}
+  .parties{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px}
+  .party{border:1px solid var(--paper-line);border-radius:6px;overflow:hidden}
+  .party .cap{background:var(--accent-soft);color:var(--paper-head);font-weight:800;font-size:12px;padding:6px 10px;border-bottom:1px solid var(--paper-line)}
+  .party .body{padding:9px 11px;font-size:12.5px}
+  .party .nm{font-size:15px;font-weight:800;margin-bottom:3px}
+  .party .li{color:#555;margin:1px 0}
+  .totline{text-align:center;background:var(--accent);color:#fff;border-radius:6px;padding:11px;font-size:16px;font-weight:800;margin-bottom:16px;letter-spacing:.02em}
+  .totline .kw{font-weight:600;opacity:.85;font-size:13px;margin-right:6px}
+  table.doc{width:100%;border-collapse:collapse;font-size:12.5px}
+  table.doc th{background:var(--accent);color:#fff;font-weight:700;padding:9px 8px;text-align:center;font-size:12px}
+  table.doc td{border:1px solid var(--paper-line);padding:8px;color:#222}
+  table.doc tbody td.c{text-align:center}
+  table.doc tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
+  table.doc tfoot td{border:1px solid var(--paper-line);padding:8px;font-weight:700}
+  table.doc tfoot .lbl{text-align:right;color:#444;background:#fafbfd}
+  table.doc tfoot .grand td{background:var(--accent-soft);color:var(--paper-head);font-size:14px}
+  .note{margin-top:16px;font-size:12px;color:#444;white-space:pre-wrap;border-top:1px dashed var(--paper-line);padding-top:10px}
+  .empty{color:#999;text-align:center;padding:16px}
+
+  @media print{
+    body{background:#fff}
+    .app{max-width:none;padding:0}
+    .topbar,.layout > .col-form,.no-print{display:none !important}
+    .layout{display:block}
+    .paperwrap{overflow:visible}
+    .paper{border:none;box-shadow:none;max-width:none;border-radius:0;padding:0}
+    .party,.totline,table.doc th,table.doc tfoot .grand td{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  }
+</style>
+
+<div class="app">
+  <div class="topbar">
+    <h1>📄 견적서·청구서 생성기</h1>
+    <div class="seg" id="typeSeg">
+      <button data-t="견적서" class="on">견적서</button>
+      <button data-t="청구서">청구서</button>
+      <button data-t="거래명세서">거래명세서</button>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn" id="themeBtn">◐ 테마</button>
+    <button class="btn primary" id="printBtn">🖨 인쇄 / PDF 저장</button>
+  </div>
+
+  <div class="layout">
+    <div class="col-form">
+      <div class="panel">
+        <h2>공급자 (내 정보)</h2>
+        <label class="fl">상호 / 이름</label>
+        <input id="s_name" placeholder="예) 홍길동 디자인 스튜디오">
+        <div class="frow">
+          <div><label class="fl">사업자등록번호</label><input id="s_biz" placeholder="선택"></div>
+          <div><label class="fl">대표자</label><input id="s_ceo" placeholder="예) 홍길동"></div>
+        </div>
+        <label class="fl">주소</label>
+        <input id="s_addr" placeholder="선택">
+        <div class="frow">
+          <div><label class="fl">연락처</label><input id="s_tel" placeholder="예) 010-0000-0000"></div>
+          <div><label class="fl">이메일</label><input id="s_email" placeholder="선택"></div>
+        </div>
+        <label class="fl">입금 계좌</label>
+        <input id="s_bank" placeholder="예) 국민 000000-00-000000 홍길동">
+        <div class="savebar">
+          <button class="btn" id="saveMe">이 정보 저장</button>
+          <button class="btn" id="loadMe">불러오기</button>
+        </div>
+        <div class="muted" id="saveMsg" style="margin-top:6px"></div>
+      </div>
+
+      <div class="panel">
+        <h2>공급받는 자 (거래처)</h2>
+        <label class="fl">상호 / 이름</label>
+        <input id="c_name" placeholder="예) (주)받는곳">
+        <div class="frow">
+          <div><label class="fl">담당자</label><input id="c_person" placeholder="선택"></div>
+          <div><label class="fl">연락처</label><input id="c_tel" placeholder="선택"></div>
+        </div>
+        <label class="fl">비고(참조)</label>
+        <input id="c_ref" placeholder="예) 견적 유효기간 30일">
+      </div>
+
+      <div class="panel">
+        <h2>항목</h2>
+        <table class="items">
+          <thead><tr>
+            <th style="width:40%">품목/내용</th><th style="width:16%">수량</th>
+            <th style="width:30%">단가</th><th></th>
+          </tr></thead>
+          <tbody id="itemBody"></tbody>
+        </table>
+        <button class="btn additem" id="addItem">+ 항목 추가</button>
+
+        <div class="opts">
+          <label><input type="checkbox" id="vatOn" checked> 부가세 10% 별도</label>
+          <span class="muted">|</span>
+          <label>할인 <input type="number" id="discount" value="0" style="width:110px" class="num"></label>
+        </div>
+        <label class="fl">비고 / 결제 조건</label>
+        <textarea id="note" placeholder="예) 계약금 50% 선입금, 잔금 납품 시. 세금계산서 발행 가능."></textarea>
+      </div>
+    </div>
+
+    <div class="col-doc">
+      <div class="paperwrap">
+        <div class="paper" id="paper"><!-- 렌더링 --></div>
+      </div>
+      <div class="muted no-print" style="text-align:center;margin-top:10px">
+        미리보기는 실시간 반영됩니다 · "인쇄/PDF 저장"에서 <b>대상: PDF로 저장</b> 선택 → 서류 완성
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+var $=function(s){return document.querySelector(s);};
+var $$=function(s){return Array.prototype.slice.call(document.querySelectorAll(s));};
+var STORE_KEY="ei_supplier_v1";
+var docType="견적서";
+
+/* ---- 숫자 → 한글 금액 ---- */
+function numToKorean(n){
+  n=Math.floor(Math.abs(n||0));
+  if(n===0) return "영";
+  var d=["","일","이","삼","사","오","육","칠","팔","구"];
+  var s=["","십","백","천"], b=["","만","억","조","경"];
+  var out="", gi=0;
+  while(n>0){
+    var grp=n%10000, gs="", g=grp, u=0;
+    while(g>0){ var x=g%10; if(x>0) gs=d[x]+s[u]+gs; g=Math.floor(g/10); u++; }
+    if(grp>0) out=gs+b[gi]+out;
+    n=Math.floor(n/10000); gi++;
+  }
+  return out;
+}
+function won(n){ return (Math.round(n)||0).toLocaleString("ko-KR"); }
+
+/* ---- 항목 관리 ---- */
+function addRow(name,qty,price){
+  var tb=$("#itemBody");
+  var tr=document.createElement("tr");
+  tr.innerHTML=
+    '<td><input class="i-name" placeholder="예) 로고 디자인" value="'+(name||"")+'"></td>'+
+    '<td><input class="i-qty num" type="number" min="0" value="'+(qty!=null?qty:1)+'"></td>'+
+    '<td><input class="i-price num" type="number" min="0" value="'+(price!=null?price:0)+'"></td>'+
+    '<td style="text-align:center"><button class="delrow" title="삭제">×</button></td>';
+  tb.appendChild(tr);
+  tr.querySelector(".delrow").addEventListener("click",function(){ tr.remove(); render(); });
+  tr.querySelectorAll("input").forEach(function(el){ el.addEventListener("input",render); });
+  render();
+}
+
+function collect(){
+  var items=$$("#itemBody tr").map(function(tr){
+    return {
+      name:tr.querySelector(".i-name").value.trim(),
+      qty:parseFloat(tr.querySelector(".i-qty").value)||0,
+      price:parseFloat(tr.querySelector(".i-price").value)||0
+    };
+  });
+  var subtotal=items.reduce(function(a,it){return a+it.qty*it.price;},0);
+  var discount=parseFloat($("#discount").value)||0;
+  var base=Math.max(0,subtotal-discount);
+  var vat=$("#vatOn").checked?Math.round(base*0.1):0;
+  var total=base+vat;
+  return {items:items,subtotal:subtotal,discount:discount,vat:vat,total:total};
+}
+
+function esc(s){return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function docNo(){
+  var d=new Date();
+  var p=function(x){return (x<10?"0":"")+x;};
+  return d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+"-"+p(d.getHours())+p(d.getMinutes());
+}
+function today(){ var d=new Date(); return d.getFullYear()+". "+(d.getMonth()+1)+". "+d.getDate()+"."; }
+
+function partyBlock(cap,obj){
+  var lines=[];
+  if(obj.biz) lines.push("등록번호 "+esc(obj.biz));
+  if(obj.ceo) lines.push("대표 "+esc(obj.ceo));
+  if(obj.addr) lines.push(esc(obj.addr));
+  var contact=[];
+  if(obj.tel) contact.push(esc(obj.tel));
+  if(obj.email) contact.push(esc(obj.email));
+  if(contact.length) lines.push(contact.join(" · "));
+  if(obj.person) lines.push("담당 "+esc(obj.person));
+  if(obj.bank) lines.push("입금 "+esc(obj.bank));
+  if(obj.ref) lines.push(esc(obj.ref));
+  return '<div class="party"><div class="cap">'+cap+'</div><div class="body">'+
+    '<div class="nm">'+(esc(obj.name)||'—')+'</div>'+
+    lines.map(function(l){return '<div class="li">'+l+'</div>';}).join("")+
+    '</div></div>';
+}
+
+function render(){
+  var c=collect();
+  var supplier={name:$("#s_name").value,biz:$("#s_biz").value,ceo:$("#s_ceo").value,
+    addr:$("#s_addr").value,tel:$("#s_tel").value,email:$("#s_email").value,bank:$("#s_bank").value};
+  var client={name:$("#c_name").value,person:$("#c_person").value,tel:$("#c_tel").value,ref:$("#c_ref").value};
+
+  var rows="";
+  var realItems=c.items.filter(function(it){return it.name||it.qty||it.price;});
+  if(realItems.length===0){
+    rows='<tr><td class="empty" colspan="5">왼쪽에서 항목을 추가하세요</td></tr>';
+  }else{
+    realItems.forEach(function(it,i){
+      rows+='<tr>'+
+        '<td class="c">'+(i+1)+'</td>'+
+        '<td>'+(esc(it.name)||'—')+'</td>'+
+        '<td class="c">'+(it.qty||0)+'</td>'+
+        '<td class="r">'+won(it.price)+'</td>'+
+        '<td class="r">'+won(it.qty*it.price)+'</td>'+
+      '</tr>';
+    });
+  }
+
+  var foot=
+    '<tr><td class="lbl" colspan="4">공급가액</td><td class="r">'+won(c.subtotal)+'</td></tr>'+
+    (c.discount?'<tr><td class="lbl" colspan="4">할인</td><td class="r">- '+won(c.discount)+'</td></tr>':'')+
+    ($("#vatOn").checked?'<tr><td class="lbl" colspan="4">부가세 (10%)</td><td class="r">'+won(c.vat)+'</td></tr>':'')+
+    '<tr class="grand"><td class="lbl" colspan="4">합계 금액</td><td class="r">'+won(c.total)+'</td></tr>';
+
+  var noteVal=$("#note").value.trim();
+  var titleLabel = docType==="거래명세서" ? "거 래 명 세 서" : (docType==="청구서" ? "청 구 서" : "견 적 서");
+
+  $("#paper").innerHTML=
+    '<div class="doc-title"><span class="u">'+titleLabel+'</span></div>'+
+    '<div class="doc-meta"><span>No. '+docNo()+'</span><span>작성일 '+today()+'</span></div>'+
+    '<div class="parties">'+
+      partyBlock("공급받는 자",client)+
+      partyBlock("공급자",supplier)+
+    '</div>'+
+    '<div class="totline"><span class="kw">일금</span>'+numToKorean(c.total)+'원정 &nbsp;(₩ '+won(c.total)+')</div>'+
+    '<table class="doc"><thead><tr>'+
+      '<th style="width:8%">No</th><th>품목 / 내용</th><th style="width:12%">수량</th>'+
+      '<th style="width:20%">단가</th><th style="width:22%">금액</th>'+
+    '</tr></thead><tbody>'+rows+'</tbody><tfoot>'+foot+'</tfoot></table>'+
+    (noteVal?'<div class="note"><b>비고</b>\n'+esc(noteVal)+'</div>':'');
+}
+
+/* ---- 저장/불러오기 ---- */
+function supplierFields(){return ["s_name","s_biz","s_ceo","s_addr","s_tel","s_email","s_bank"];}
+$("#saveMe").addEventListener("click",function(){
+  var o={}; supplierFields().forEach(function(id){o[id]=$("#"+id).value;});
+  try{ localStorage.setItem(STORE_KEY,JSON.stringify(o)); $("#saveMsg").textContent="✓ 저장됨 (이 브라우저에)";}
+  catch(e){ $("#saveMsg").textContent="저장 실패 (브라우저 설정 확인)"; }
+});
+$("#loadMe").addEventListener("click",function(){
+  try{
+    var o=JSON.parse(localStorage.getItem(STORE_KEY)||"{}");
+    supplierFields().forEach(function(id){ if(o[id]!=null)$("#"+id).value=o[id]; });
+    $("#saveMsg").textContent="✓ 불러옴"; render();
+  }catch(e){ $("#saveMsg").textContent="저장된 정보가 없습니다"; }
+});
+
+/* ---- 이벤트 ---- */
+$("#addItem").addEventListener("click",function(){addRow("",1,0);});
+$$("#s_name,#s_biz,#s_ceo,#s_addr,#s_tel,#s_email,#s_bank,#c_name,#c_person,#c_tel,#c_ref,#note")
+  .forEach(function(el){el.addEventListener("input",render);});
+$("#discount").addEventListener("input",render);
+$("#vatOn").addEventListener("change",render);
+$("#printBtn").addEventListener("click",function(){window.print();});
+$("#typeSeg").querySelectorAll("button").forEach(function(b){
+  b.addEventListener("click",function(){
+    $("#typeSeg").querySelectorAll("button").forEach(function(x){x.classList.remove("on");});
+    b.classList.add("on"); docType=b.dataset.t; render();
+  });
+});
+$("#themeBtn").addEventListener("click",function(){
+  var r=document.documentElement, cur=r.getAttribute("data-theme");
+  var next=cur==="dark"?"light":(cur==="light"?"dark":
+    (window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"light":"dark"));
+  r.setAttribute("data-theme",next);
+});
+
+/* ---- 초기 상태 (예시) ---- */
+try{ if(localStorage.getItem(STORE_KEY)){ $("#loadMe").click(); } }catch(e){}
+addRow("로고 디자인 (기본 3안)",1,600000);
+addRow("명함 디자인",1,150000);
+render();
+</script>

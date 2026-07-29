@@ -1,0 +1,359 @@
+<title>쇼핑몰 마진 계산기 — 판매가·순이익 시뮬레이터</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --bg:#eef0f4; --chrome:#ffffff; --ink:#181b22; --sub:#616776; --line:#e4e7ed;
+    --accent:#2f4a7c; --accent-2:#1f9e6b; --danger:#c8503f; --field:#f6f8fa;
+    --soft:#eef3fc; --good-soft:#e7f6ee; --bad-soft:#fceeec;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{ --bg:#0d0f15; --chrome:#151922; --ink:#e9ecf3; --sub:#98a0b0; --line:#242a35;
+      --accent:#7ea2e6; --accent-2:#4fd39a; --field:#1c212b; --soft:#1a2436; --good-soft:#12281f; --bad-soft:#2c1a17; }
+  }
+  :root[data-theme="dark"]{ --bg:#0d0f15; --chrome:#151922; --ink:#e9ecf3; --sub:#98a0b0; --line:#242a35; --accent:#7ea2e6; --accent-2:#4fd39a; --field:#1c212b; --soft:#1a2436; --good-soft:#12281f; --bad-soft:#2c1a17; }
+  :root[data-theme="light"]{ --bg:#eef0f4; --chrome:#ffffff; --ink:#181b22; --sub:#616776; --line:#e4e7ed; --accent:#2f4a7c; --accent-2:#1f9e6b; --field:#f6f8fa; --soft:#eef3fc; --good-soft:#e7f6ee; --bad-soft:#fceeec; }
+
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Noto Sans KR",Roboto,sans-serif;
+    line-height:1.5;font-size:14px}
+  .app{max-width:1060px;margin:0 auto;padding:18px 16px 70px}
+  .top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+  .top h1{font-size:19px;margin:0;font-weight:800;letter-spacing:-.02em}
+  .top .spacer{flex:1}
+  .themebtn{cursor:pointer;border:1px solid var(--line);background:var(--chrome);color:var(--ink);border-radius:9px;font-weight:700;font-size:13px;padding:8px 12px}
+  .lede{color:var(--sub);font-size:13px;margin:0 0 16px}
+  .layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,420px);gap:20px;align-items:start}
+  @media (max-width:880px){.layout{grid-template-columns:1fr}}
+
+  .card{background:var(--chrome);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .card + .card{margin-top:14px}
+  .card h2{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--sub);margin:0 0 12px;font-weight:800}
+  label.fl{display:block;font-size:12.5px;color:var(--sub);font-weight:600;margin:12px 0 5px}
+  .fl:first-child{margin-top:0}
+  .frow{display:flex;gap:10px}.frow>*{flex:1;min-width:0}
+  input,select{width:100%;background:var(--field);color:var(--ink);border:1px solid var(--line);
+    border-radius:9px;padding:9px 11px;font-size:14px;font-family:inherit}
+  input:focus,select:focus{outline:2px solid var(--accent);border-color:transparent}
+  .num{text-align:right;font-variant-numeric:tabular-nums}
+  .suffix{position:relative}
+  .suffix .u{position:absolute;right:11px;top:50%;transform:translateY(-50%);color:var(--sub);font-size:12px;pointer-events:none}
+  .suffix input{padding-right:30px}
+
+  .seg{display:inline-flex;background:var(--field);border:1px solid var(--line);border-radius:10px;padding:3px;width:100%}
+  .seg button{flex:1;border:none;background:transparent;color:var(--sub);font-weight:700;font-size:13px;padding:8px;border-radius:7px;cursor:pointer;font-family:inherit}
+  .seg button.on{background:var(--accent);color:#fff}
+  .unitpick{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .unitpick button{border:none;background:var(--field);color:var(--sub);font-weight:700;font-size:12px;padding:0 10px;cursor:pointer}
+  .unitpick button.on{background:var(--accent);color:#fff}
+  .chk{display:flex;gap:8px;align-items:center;font-size:13px;cursor:pointer;margin-top:12px}
+  .hint{font-size:11.5px;color:var(--sub);margin-top:6px;line-height:1.45}
+
+  /* results */
+  .hero{border-radius:14px;padding:18px;color:#fff;background:linear-gradient(135deg,var(--accent),#25406e)}
+  .hero.loss{background:linear-gradient(135deg,#b0483a,#8f3529)}
+  .hero .k{font-size:12px;opacity:.85;font-weight:700;letter-spacing:.04em}
+  .hero .big{font-size:34px;font-weight:800;letter-spacing:-.02em;margin:2px 0 2px;font-variant-numeric:tabular-nums}
+  .hero .row2{display:flex;gap:18px;margin-top:8px;font-size:13px}
+  .hero .row2 b{font-size:16px;display:block;font-variant-numeric:tabular-nums}
+  .reco{background:var(--good-soft);border:1px solid var(--accent-2);border-radius:12px;padding:14px;margin-top:14px}
+  .reco .k{font-size:12px;color:var(--sub);font-weight:700}
+  .reco .v{font-size:26px;font-weight:800;color:var(--accent-2);font-variant-numeric:tabular-nums}
+
+  table.bd{width:100%;border-collapse:collapse;margin-top:14px;font-size:13px}
+  table.bd td{padding:8px 4px;border-bottom:1px solid var(--line)}
+  table.bd td.r{text-align:right;font-variant-numeric:tabular-nums}
+  table.bd .minus td.r{color:var(--danger)}
+  table.bd .sum td{font-weight:800;border-top:2px solid var(--line);border-bottom:none;padding-top:11px}
+  table.bd .sum td.r{font-size:16px}
+  .metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+  .metric{background:var(--field);border:1px solid var(--line);border-radius:11px;padding:11px 13px}
+  .metric .k{font-size:11.5px;color:var(--sub);font-weight:700}
+  .metric .v{font-size:19px;font-weight:800;font-variant-numeric:tabular-nums;margin-top:2px}
+  .foot{font-size:11px;color:var(--sub);margin-top:14px;line-height:1.5}
+
+  .cmpwrap{overflow-x:auto}
+  table.cmp{width:100%;border-collapse:collapse;font-size:13.5px;min-width:460px}
+  table.cmp th{text-align:right;font-size:11.5px;color:var(--sub);font-weight:700;padding:0 10px 8px;border-bottom:1px solid var(--line)}
+  table.cmp th:first-child{text-align:left}
+  table.cmp td{padding:11px 10px;border-bottom:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums}
+  table.cmp td:first-child{text-align:left;font-weight:700}
+  table.cmp tr.best td{background:var(--good-soft)}
+  table.cmp tr.best td:first-child::after{content:" 👑";}
+  table.cmp .pos{color:var(--accent-2);font-weight:800}
+  table.cmp .neg{color:var(--danger);font-weight:800}
+  .badge{display:inline-block;font-size:10.5px;font-weight:800;color:#fff;background:var(--accent-2);border-radius:5px;padding:1px 6px;margin-left:6px;vertical-align:middle}
+</style>
+
+<div class="app">
+  <div class="top">
+    <h1>🛒 쇼핑몰 마진 계산기</h1>
+    <div class="spacer"></div>
+    <button class="themebtn" id="themeBtn">◐ 테마</button>
+  </div>
+  <p class="lede">마켓 수수료·광고비·배송비·부가세까지 빼고 <b>진짜 남는 돈</b>을 계산합니다. 목표 마진율을 정하면 <b>판매가를 역산</b>해 드립니다.</p>
+
+  <div class="layout">
+    <div class="col-in">
+      <div class="card">
+        <h2>계산 방식</h2>
+        <div class="seg" id="modeSeg">
+          <button data-m="fwd" class="on">판매가 → 순이익 보기</button>
+          <button data-m="rev">목표 마진율 → 판매가 정하기</button>
+        </div>
+
+        <div id="fwdBox">
+          <label class="fl">판매가 (소비자가, 원)</label>
+          <div class="suffix"><input id="sell" class="num" type="number" min="0" value="29900"><span class="u">원</span></div>
+        </div>
+        <div id="revBox" style="display:none">
+          <label class="fl">목표 마진율 (판매가 대비, %)</label>
+          <div class="suffix"><input id="target" class="num" type="number" min="0" max="90" value="25"><span class="u">%</span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>비용 입력</h2>
+        <label class="fl">판매 채널</label>
+        <select id="channel">
+          <option value="5.5">스마트스토어 (약 5.5%)</option>
+          <option value="10.8">쿠팡 (약 10.8%)</option>
+          <option value="12">11번가 (약 12%)</option>
+          <option value="12">지마켓·옥션 (약 12%)</option>
+          <option value="3.4">자사몰·카페24 (PG 약 3.4%)</option>
+          <option value="custom">직접 입력</option>
+        </select>
+
+        <div class="frow">
+          <div>
+            <label class="fl">판매 수수료</label>
+            <div class="suffix"><input id="feeRate" class="num" type="number" min="0" step="0.1" value="5.5"><span class="u">%</span></div>
+          </div>
+          <div>
+            <label class="fl">상품 원가(매입)</label>
+            <div class="suffix"><input id="cost" class="num" type="number" min="0" value="9000"><span class="u">원</span></div>
+          </div>
+        </div>
+
+        <div class="frow">
+          <div>
+            <label class="fl">배송비 내 부담</label>
+            <div class="suffix"><input id="ship" class="num" type="number" min="0" value="3000"><span class="u">원</span></div>
+          </div>
+          <div>
+            <label class="fl">포장·부자재</label>
+            <div class="suffix"><input id="pack" class="num" type="number" min="0" value="500"><span class="u">원</span></div>
+          </div>
+        </div>
+
+        <label class="fl">광고비 <span style="float:right" class="unitpick" id="adUnit">
+          <button data-u="won" class="on">원</button><button data-u="pct">%</button></span></label>
+        <div class="suffix"><input id="ad" class="num" type="number" min="0" value="2000"><span class="u" id="adU">원</span></div>
+
+        <label class="fl">기타 비용</label>
+        <div class="suffix"><input id="etc" class="num" type="number" min="0" value="0"><span class="u">원</span></div>
+
+        <label class="chk"><input type="checkbox" id="vatOn"> 부가세 반영 (일반과세 추정 · 마진의 1/11)</label>
+        <div class="hint">채널 수수료율·부가세는 <b>예시 기본값</b>입니다. 카테고리·계약·과세유형에 따라 다르니 본인 숫자로 수정하세요. 세무 신고는 세무사/홈택스 기준을 따르세요.</div>
+      </div>
+    </div>
+
+    <div class="col-out">
+      <div class="hero" id="hero">
+        <div class="k">순이익 (1개 판매 시)</div>
+        <div class="big" id="profit">—</div>
+        <div class="row2">
+          <div>마진율(판매가 대비)<b id="marginPct">—</b></div>
+          <div>원가대비 수익률<b id="roi">—</b></div>
+        </div>
+      </div>
+
+      <div class="reco" id="recoBox" style="display:none">
+        <div class="k">목표 마진율을 맞추는 권장 판매가</div>
+        <div class="v" id="recoPrice">—</div>
+      </div>
+
+      <div class="card">
+        <h2>비용 분해</h2>
+        <table class="bd" id="bd"></table>
+        <div class="metrics">
+          <div class="metric"><div class="k">손익분기 판매가</div><div class="v" id="bep">—</div></div>
+          <div class="metric"><div class="k">총 공제(원가+비용)</div><div class="v" id="totalCost">—</div></div>
+        </div>
+        <div class="foot">이 계산은 1개 판매 기준 단순 추정입니다. 반품·CS·재고손실·고정비(임대·인건비)는 포함되지 않습니다. 실제 손익은 월 단위로 별도 관리하세요.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <h2 id="cmpTitle">채널별 비교 — 같은 조건으로 어디가 제일 남나</h2>
+    <div class="cmpwrap"><table class="cmp" id="cmpTable"></table></div>
+    <div class="foot" id="cmpFoot"></div>
+  </div>
+</div>
+
+<script>
+var $=function(s){return document.querySelector(s);};
+var $$=function(s){return Array.prototype.slice.call(document.querySelectorAll(s));};
+var mode="fwd", adUnit="won";
+function won(n){ return (Math.round(n)||0).toLocaleString("ko-KR"); }
+function pct(x){ return (Math.round(x*10)/10).toLocaleString("ko-KR")+"%"; }
+
+function calc(feeOverride){
+  var feeR=(feeOverride!=null ? feeOverride : (parseFloat($("#feeRate").value)||0))/100;
+  var cost=parseFloat($("#cost").value)||0;
+  var ship=parseFloat($("#ship").value)||0;
+  var pack=parseFloat($("#pack").value)||0;
+  var etc=parseFloat($("#etc").value)||0;
+  var adVal=parseFloat($("#ad").value)||0;
+  var vat=$("#vatOn").checked;
+
+  // 광고: %면 매출비례(rate), 원이면 고정
+  var adR = adUnit==="pct" ? adVal/100 : 0;
+  var adFixed = adUnit==="won" ? adVal : 0;
+
+  // 순이익 = a*P - F   (P=판매가)
+  // a = 1 - feeR - adR - (vat? 1/11 : 0)
+  // F = cost*(vat? 10/11 : 1) + ship + pack + etc + adFixed
+  var a = 1 - feeR - adR - (vat ? 1/11 : 0);
+  var F = cost*(vat ? 10/11 : 1) + ship + pack + etc + adFixed;
+
+  var P;
+  if(mode==="rev"){
+    var m=(parseFloat($("#target").value)||0)/100;
+    var denom = a - m;
+    P = denom>0 ? F/denom : NaN;
+  } else {
+    P = parseFloat($("#sell").value)||0;
+  }
+
+  var fee = P*feeR;
+  var adCost = adFixed + P*adR;
+  var vatCost = vat ? Math.max(0,(P - cost)/11) : 0;
+  var profit = P - fee - adCost - ship - pack - etc - cost - vatCost;
+  var marginPct = P>0 ? profit/P*100 : 0;
+  var roi = cost>0 ? profit/cost*100 : 0;
+  var bep = a>0 ? F/a : NaN;
+  var totalCost = fee + adCost + ship + pack + etc + cost + vatCost;
+
+  return {P:P,fee:fee,adCost:adCost,ship:ship,pack:pack,etc:etc,cost:cost,vat:vatCost,
+    vatOn:vat,profit:profit,marginPct:marginPct,roi:roi,bep:bep,totalCost:totalCost};
+}
+
+function render(){
+  var r=calc();
+  var hero=$("#hero");
+  if(isNaN(r.P)){
+    $("#profit").textContent="계산 불가";
+    hero.classList.add("loss");
+    $("#marginPct").textContent="—"; $("#roi").textContent="—";
+    $("#recoPrice").textContent="목표 마진율이 너무 높음";
+  } else {
+    $("#profit").textContent=won(r.profit)+"원";
+    hero.classList.toggle("loss", r.profit<0);
+    $("#marginPct").textContent=pct(r.marginPct);
+    $("#roi").textContent=pct(r.roi);
+    $("#recoPrice").textContent=won(r.P)+"원";
+  }
+  $("#recoBox").style.display = mode==="rev" ? "block":"none";
+
+  var rows=[
+    ["판매가", r.P, false],
+    ["− 판매 수수료", r.fee, true],
+    ["− 광고비", r.adCost, true],
+    ["− 배송비", r.ship, true],
+    ["− 포장·부자재", r.pack, true],
+    ["− 기타 비용", r.etc, true],
+    ["− 상품 원가", r.cost, true]
+  ];
+  if(r.vatOn) rows.push(["− 부가세(추정)", r.vat, true]);
+  var html="";
+  rows.forEach(function(x){
+    html+='<tr class="'+(x[2]?"minus":"")+'"><td>'+x[0]+'</td><td class="r">'+won(x[1])+'</td></tr>';
+  });
+  html+='<tr class="sum"><td>= 순이익</td><td class="r">'+ (isNaN(r.P)?"—":won(r.profit)) +'</td></tr>';
+  $("#bd").innerHTML=html;
+
+  $("#bep").textContent = isNaN(r.bep)?"—":won(r.bep)+"원";
+  $("#totalCost").textContent = won(r.totalCost)+"원";
+
+  buildCmp();
+}
+
+var CHANNELS=[
+  {name:"스마트스토어", fee:5.5},
+  {name:"쿠팡", fee:10.8},
+  {name:"11번가", fee:12},
+  {name:"지마켓·옥션", fee:12},
+  {name:"자사몰·카페24", fee:3.4}
+];
+function buildCmp(){
+  var rev = mode==="rev";
+  $("#cmpTitle").textContent = rev
+    ? "채널별 비교 — 같은 마진율을 맞추는 판매가"
+    : "채널별 비교 — 같은 판매가로 어디가 제일 남나";
+  var results=CHANNELS.map(function(ch){
+    var r=calc(ch.fee);
+    return {name:ch.name, fee:ch.fee, P:r.P, profit:r.profit, margin:r.marginPct};
+  });
+  var valid=results.filter(function(x){return !isNaN(x.P)&&isFinite(x.P);});
+  // best: fwd = 최고 순이익 / rev = 최저 권장가
+  var best=null;
+  valid.forEach(function(x){
+    if(!best){best=x;return;}
+    if(rev){ if(x.P<best.P) best=x; }
+    else { if(x.profit>best.profit) best=x; }
+  });
+  var head = rev
+    ? '<tr><th>채널</th><th>수수료</th><th>권장 판매가</th><th>순이익</th></tr>'
+    : '<tr><th>채널</th><th>수수료</th><th>순이익</th><th>마진율</th></tr>';
+  var body=results.map(function(x){
+    var isBest = best && x.name===best.name;
+    var money=function(v){ var cls=v<0?"neg":"pos"; return '<span class="'+cls+'">'+won(v)+'원</span>'; };
+    if(rev){
+      var priceCell = (isNaN(x.P)||!isFinite(x.P)) ? '<span class="neg">불가</span>' : won(x.P)+'원';
+      return '<tr class="'+(isBest?'best':'')+'"><td>'+x.name+(isBest?'<span class="badge">가장 경쟁력</span>':'')+
+        '</td><td>'+x.fee+'%</td><td>'+priceCell+'</td><td>'+ (isNaN(x.P)?'—':money(x.profit)) +'</td></tr>';
+    }
+    return '<tr class="'+(isBest?'best':'')+'"><td>'+x.name+(isBest?'<span class="badge">최고 마진</span>':'')+
+      '</td><td>'+x.fee+'%</td><td>'+money(x.profit)+'</td><td>'+(Math.round(x.margin*10)/10)+'%</td></tr>';
+  }).join("");
+  $("#cmpTable").innerHTML=head+body;
+  $("#cmpFoot").textContent = rev
+    ? "같은 마진율을 유지하면서 가장 낮은 가격에 팔 수 있는 채널이 가격 경쟁에 유리합니다. 수수료율은 예시 기본값이니 본인 계약 요율로 수정하세요."
+    : "같은 판매가·비용 기준, 수수료만 채널별로 바꿔 순이익을 비교합니다. 마켓은 수수료가 높은 대신 유입이 많고, 자사몰은 수수료가 낮은 대신 광고비가 듭니다.";
+}
+
+/* 이벤트 */
+$("#channel").addEventListener("change",function(){
+  if(this.value!=="custom") $("#feeRate").value=this.value;
+  render();
+});
+$("#modeSeg").querySelectorAll("button").forEach(function(b){
+  b.addEventListener("click",function(){
+    $("#modeSeg").querySelectorAll("button").forEach(function(x){x.classList.remove("on");});
+    b.classList.add("on"); mode=b.dataset.m;
+    $("#fwdBox").style.display = mode==="fwd"?"block":"none";
+    $("#revBox").style.display = mode==="rev"?"block":"none";
+    render();
+  });
+});
+$("#adUnit").querySelectorAll("button").forEach(function(b){
+  b.addEventListener("click",function(){
+    $("#adUnit").querySelectorAll("button").forEach(function(x){x.classList.remove("on");});
+    b.classList.add("on"); adUnit=b.dataset.u; $("#adU").textContent = adUnit==="won"?"원":"%";
+    render();
+  });
+});
+$$("#sell,#target,#feeRate,#cost,#ship,#pack,#etc,#ad,#vatOn").forEach(function(el){
+  el.addEventListener("input",render); el.addEventListener("change",render);
+});
+$("#themeBtn").addEventListener("click",function(){
+  var r=document.documentElement, cur=r.getAttribute("data-theme");
+  var next=cur==="dark"?"light":(cur==="light"?"dark":
+    (window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"light":"dark"));
+  r.setAttribute("data-theme",next);
+});
+
+render();
+</script>
