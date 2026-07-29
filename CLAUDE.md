@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Agent Office — a pixel-office dashboard that watches Claude Code / Codex workers running in tmux and visualizes their status. Currently a Phase 1 MVP (watcher + dashboard); Phase 2 (PM bot spawning workers from a task queue) and Phase 3 (Discord integration, auto quota updates) are on the roadmap in `office/README.md`. Documentation, comments, and UI text are in Korean.
+Agent Office — a pixel-office dashboard that watches Claude Code / Codex workers running in tmux and visualizes their status. Phase 1 (watcher + dashboard) and Phase 2 (PM bot orchestrating a task queue) are done; Phase 3 (Discord integration, auto quota updates) is on the roadmap in `office/README.md`. Documentation, comments, and UI text are in Korean.
 
 ## Running
 
@@ -30,7 +30,9 @@ Two files do all the work:
 
 - **`office/web/index.html`** — self-contained frontend (inline CSS/JS, no framework). Polls `/api/state` and renders the pixel office on a `<canvas>` plus panels for usage, quota gauges, and the task board.
 
-`office/quota.json` and `office/tasks.json` are runtime config read fresh on every poll — absent files just mean empty sections.
+- **`office/pm.py`** — the Phase 2 PM bot, a separate process from the server. Reads `office/tasks.json` as a live queue and drives task status transitions `대기 → 작업중 → 검수대기 → 완료/중단`: spawns tmux workers (`agent-<id>`, binary from `OFFICE_CLAUDE_BIN`, up to `OFFICE_MAX_WORKERS`) for queued tasks, marks a task 검수대기 when its worker transitions busy→idle after having worked, and emits events (spawn/done/stalled/context_low/lost) to `office/events.jsonl`, which the dashboard shows in the 알림 panel. Context warning fires when the status area shows `Context ... N%` with N ≤ `OFFICE_CONTEXT_WARN_PCT` (20). CLI: `add/done/kill/status`; no subcommand runs the loop. Imports `capture`/`classify` from office.py; `tasks.json` writes are atomic (temp file + `os.replace`) because the server reads it concurrently.
+
+`office/quota.json`, `office/tasks.json`, and `office/events.jsonl` are runtime state read fresh on every poll — absent files just mean empty sections. All three are gitignored; `worked` on a task is PM bookkeeping (persisted so it survives PM restarts), and task IDs are `t<n>` assigned by `pm.py add`.
 
 ## Load-bearing design decisions
 
