@@ -66,6 +66,27 @@ busy 판정을 하단 상태바 영역으로 한정한 이유: 워커가 보고�
 ]
 ```
 
+## PM 봇 (Phase 2)
+
+태스크 큐를 읽어 워커를 자동으로 출근시키고 상태를 관리한다:
+
+```bash
+python3 office/pm.py add "제목" -p "워커에게 줄 프롬프트" -d ~/작업디렉토리
+python3 office/pm.py            # PM 루프 시작 (office.py와 별도 프로세스)
+python3 office/pm.py status     # 큐 현황
+python3 office/pm.py done t1    # 검수 통과 → 완료 처리 + 세션 정리
+python3 office/pm.py kill t1    # 강제 중단
+```
+
+상태 전이: `대기 → 작업중 → 검수대기 → 완료/중단`
+
+- 빈 슬롯(기본 3)이 나면 대기 태스크를 `tmux` 세션으로 출근시킨다
+- busy였던 워커가 idle이 되면 **검수대기**로 전환하고 알림 — 검수는 오너 몫
+- **조기 경보**: 화면이 오래 그대로면 정체 알림, 상태바에서 `Context ... N%`를
+  읽어 잔여 20% 이하면 "마무리 지시 권장" 알림 (1bav34처럼 100% 소진 후에야
+  아는 상황 방지)
+- 이벤트는 `events.jsonl`에 쌓이고 대시보드 알림 패널에 뜬다
+
 ## 환경변수
 
 | 변수 | 기본 | 설명 |
@@ -73,11 +94,14 @@ busy 판정을 하단 상태바 영역으로 한정한 이유: 워커가 보고�
 | `OFFICE_PORT` | 8765 | 대시보드 포트 |
 | `OFFICE_POLL` | 5 | tmux 폴링 주기(초) |
 | `OFFICE_STALL_SECS` | 600 | 정체 판정 기준(초) |
+| `OFFICE_MAX_WORKERS` | 3 | PM 봇 동시 워커 수 |
+| `OFFICE_CLAUDE_BIN` | claude | 워커 실행 바이너리 (테스트 더미 대체용) |
+| `OFFICE_CONTEXT_WARN_PCT` | 20 | 컨텍스트 잔여 경보 기준(%) |
 
 ## 로드맵
 
-- **Phase 1 (지금)**: 와처 + 픽셀 대시보드 — 보이는 것부터
-- **Phase 2**: PM 봇 — 태스크 큐를 읽어 `spawn.sh`로 워커를 띄우고, 완료 감지 시
-  검수 대기 전환·결과 수집. 정체/컨텍스트 80% 시점 조기 경보
+- **Phase 1 (완료)**: 와처 + 픽셀 대시보드
+- **Phase 2 (완료)**: PM 봇 — 태스크 큐 → 워커 자동 출근, 검수대기 전환,
+  정체·컨텍스트 잔여 20% 조기 경보
 - **Phase 3**: 채널 연동 — Discord 봇으로 보고/명령, 정기 쿼터 리포트(cbot-quota)와
   소모 알림(quota-alert) 포팅, quota.json 자동 갱신

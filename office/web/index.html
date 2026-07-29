@@ -100,6 +100,10 @@
     <h2>태스크</h2>
     <table id="tasks"></table>
   </div>
+  <div class="panel">
+    <h2>알림</h2>
+    <table id="events"></table>
+  </div>
 </div>
 
 <script>
@@ -247,6 +251,7 @@ function renderPanels() {
       const used = Math.min(100, q.used_pct ?? 0), pace = q.pace_pct;
       const over = pace != null && q.over_pct > 0;
       const sub = pace == null ? ""
+        : q.expired ? `<span class="over-txt">리셋 지남 — quota.json 갱신 필요</span>`
         : over ? `권고 페이스 ${pace}% ｜ <span class="over-txt">초과 +${q.over_pct}%p</span>`
                : `권고 페이스 ${pace}% ｜ <span class="ok-txt">잔여권고 ${q.headroom_pct}%</span>`;
       return `<div class="gauge">
@@ -265,10 +270,18 @@ function renderPanels() {
       <span class="bubble">${esc(a.bubble)}</span></td></tr>`;
   }).join("") : `<tr><td class="empty">감시 중인 에이전트 없음</td></tr>`;
 
+  const T_COLOR = { "작업중": "s-busy", "검수대기": "s-idle", "대기": "", "중단": "s-stalled", "완료": "s-unknown" };
   document.getElementById("tasks").innerHTML = (state.tasks || []).length ? state.tasks.map(t =>
-    `<tr><td class="status">${esc(t.status || "")}</td><td>${esc(t.title || "")}
-     ${t.owner ? `<span style="color:var(--ink3)"> · ${esc(t.owner)}</span>` : ""}</td></tr>`
-  ).join("") : `<tr><td class="empty">office/tasks.json 을 만들면 표시됩니다.</td></tr>`;
+    `<tr><td class="status ${T_COLOR[t.status] || ""}">${esc(t.status || "")}</td><td>${esc(t.title || "")}
+     ${t.owner ? `<span style="color:var(--ink3)"> · ${esc(t.owner)}</span>` : ""}
+     ${t.worker ? `<span style="color:var(--ink3)"> · ${esc(t.worker)}</span>` : ""}</td></tr>`
+  ).join("") : `<tr><td class="empty">pm.py add 로 태스크를 넣으면 표시됩니다.</td></tr>`;
+
+  const E_ICON = { spawn: "🟢", done: "✅", stalled: "🔴", context_low: "🟡", lost: "⚠️" };
+  document.getElementById("events").innerHTML = (state.events || []).length ? state.events.map(e =>
+    `<tr><td class="status" style="color:var(--ink3)">${esc((e.ts || "").slice(11, 16))}</td>
+     <td>${E_ICON[e.type] || "•"} ${esc(e.msg || "")}</td></tr>`
+  ).join("") : `<tr><td class="empty">PM 봇(pm.py)을 돌리면 이벤트가 쌓입니다.</td></tr>`;
 }
 
 function esc(s) { return String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }

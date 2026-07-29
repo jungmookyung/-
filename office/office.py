@@ -29,7 +29,7 @@ BUSY_MARKERS = ("esc to interrupt", "ctrl+c to interrupt", "running…", "workin
 IDLE_MARKERS = ("? for shortcuts", "@ to mention", "bypass permissions", "plan mode")
 
 _lock = threading.Lock()
-_state = {"agents": [], "usage": {}, "quota": [], "tasks": [], "updated": None}
+_state = {"agents": [], "usage": {}, "quota": [], "tasks": [], "events": [], "updated": None}
 _pane_memory = {}  # pane_id -> {"hash": str, "since": float}
 
 
@@ -52,7 +52,8 @@ def list_panes():
 
 
 def capture(pane_id):
-    return sh(["tmux", "capture-pane", "-p", "-t", pane_id, "-S", "-60"])
+    # 보이는 화면만 캡처한다 — 스크롤백까지 보면 지나간 busy 마커에 오탐한다.
+    return sh(["tmux", "capture-pane", "-p", "-t", pane_id])
 
 
 def agent_kind(pane, content):
@@ -211,7 +212,9 @@ def with_pace(windows):
         try:
             resets = datetime.fromisoformat(w["resets_at"])
             window = float(w.get("window_hours", w.get("window_days", 7) * 24)) * 3600
-            remaining = max(0.0, (resets - now).total_seconds())
+            remaining = (resets - now).total_seconds()
+            item["expired"] = remaining <= 0  # 리셋 지남 — used_pct 갱신 필요
+            remaining = max(0.0, remaining)
             elapsed_pct = max(0.0, min(100.0, (1 - remaining / window) * 100))
             item["pace_pct"] = round(elapsed_pct, 1)
             used = float(w.get("used_pct", 0))
@@ -223,14 +226,34 @@ def with_pace(windows):
     return out
 
 
+def load_events(limit=15):
+    path = os.path.join(ROOT, "events.jsonl")
+    if not os.path.exists(path):
+        return []
+    try:
+        with open(path, encoding="utf-8") as fh:
+            lines = fh.readlines()[-limit:]
+        out = []
+        for line in lines:
+            try:
+                out.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+        return list(reversed(out))  # 최신이 위로
+    except OSError:
+        return []
+
+
 def collector():
     while True:
         agents = scan_agents()
         usage = scan_usage()
         quota = with_pace(load_json("quota.json", []))
         tasks = load_json("tasks.json", [])
+        events = load_events()
         with _lock:
             _state.update(agents=agents, usage=usage, quota=quota, tasks=tasks,
+                          events=events,
                           updated=datetime.now().astimezone().isoformat(timespec="seconds"))
         time.sleep(POLL_SECS)
 

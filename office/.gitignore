@@ -1,0 +1,5 @@
+# 런타임 상태 파일 — 커밋하지 않는다 (예시는 *.example 참고)
+tasks.json
+quota.json
+events.jsonl
+__pycache__/
