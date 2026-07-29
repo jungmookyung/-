@@ -26,32 +26,43 @@
 ```
 72h-kit/
 ├─ README.md                     ← 지금 이 문서 (전체 개요 + 실행 순서)
-├─ guide/
-│  └─ ai-automation-guide.md     ← 전자책 본문 (Part 0~9 + 부록)
+│
+├─ shop-margin/  ★ 쇼핑몰 니치 (현재 메인) — 팔 수 있는 완성 세트
+│  ├─ README.md                  ← 쇼핑몰 킷 인덱스 + 런치 체크리스트
+│  ├─ index.html                 ← 마진 계산기 (순이익·역산·채널 비교)
+│  ├─ landing.html               ← 판매 상세페이지 템플릿
+│  ├─ bonus-cs-templates.md      ← 쇼핑몰 CS 답변 10종
+│  ├─ bonus-fee-table.md         ← 수수료·부가세 정리표
+│  ├─ sales-copy.md              ← 판매 카피
+│  └─ marketing-posts.md         ← 바로 올리는 완성 게시글 팩
+│
+├─ estimate-invoice/  프리랜서 니치 — 견적서·청구서·거래명세서 생성기
+│  ├─ index.html                 ← 견적/청구/명세서 생성기 (PDF 저장)
+│  └─ sales-copy.md              ← 판매 카피
+│
+├─ guide/                        범용 보너스 번들 (전자책)
+│  └─ ai-automation-guide.md
 ├─ templates/
-│  ├─ prompt-templates.md        ← 복붙용 업무 지시서 10종
-│  ├─ checklists.md              ← 선정·검수·측정 체크리스트/기록표
-│  └─ notion-import.csv          ← 노션으로 바로 가져오는 지시서 DB
+│  ├─ prompt-templates.md · checklists.md · notion-import.csv
 ├─ webtool/
-│  └─ index.html                 ← 'AI 업무지시서 생성기' (단일 파일, 무료 미끼)
+│  └─ index.html                 ← 'AI 업무지시서 생성기'
 └─ launch/
-   ├─ channel-setup.md           ← 계정 0개일 때 판매/유입 채널 셋업
-   ├─ 72h-plan.md                ← Day0~Day3 시간표 + 안 팔릴 때 점검법
-   └─ sales-copy.md              ← 상세페이지·후킹 6종·카드뉴스 문구
+   ├─ channel-setup.md · 72h-plan.md · sales-copy.md
 ```
 
-**웹툴 라이브 데모:** 배포된 Artifact 링크를 그대로 무료 미끼로 공유하세요.
+**지금 메인은 `shop-margin/` (쇼핑몰 셀러 킷)입니다.** 실행은 `shop-margin/README.md`부터.
+**라이브 데모:** 계산기·판매페이지 모두 Artifact로 배포되어 있습니다(링크는 대화 참조).
 
 ---
 
 ## 지금 바로 하는 순서 (본인 몫)
 
-1. **상품 내 것으로** — `guide/`를 읽고 내 사례 추가, 표지에 내 이름/브랜드,
-   PDF로 내보내기 (`launch/72h-plan.md`의 "PDF 만드는 법").
-2. **채널 셋업** — `launch/channel-setup.md`대로 판매 1곳 + 유입 1곳 만들기.
-3. **알리기** — `launch/sales-copy.md`의 후킹 문장으로 회고형 글 게시,
-   링크는 댓글/프로필에.
-4. **반복·소통** — `launch/72h-plan.md`의 Day1~3 따라가기. 첫 1건에 집중.
+쇼핑몰 셀러 킷 기준입니다. 상세 체크리스트는 `shop-margin/README.md`에 있습니다.
+
+1. **상품 마무리** — `shop-margin/landing.html`의 `[대괄호]`(상점명·가격·구매링크) 교체.
+2. **판매처 개설** — 크몽/스마트스토어/라이트펀딩류 1곳 가입 → 상품 등록 → 판매 링크 확보.
+3. **알리기** — `shop-margin/marketing-posts.md`의 완성 게시글을 매일 1개씩, 링크는 첫 댓글에.
+4. **반복·소통** — 달린 댓글에 전부 답글. 첫 1건에 집중. 안 팔리면 `launch/72h-plan.md` 점검 순서.
 
 ---
 
